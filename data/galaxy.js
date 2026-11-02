@@ -1,0 +1,301 @@
+// Star systems, commodities, and the chart. Original names only.
+
+import { WORLD, hash } from "../util.js";
+
+export const GOODS = [
+  { id: "starlight", name: "Pickled Starlight", base: 90 },
+  { id: "regret", name: "Regret Jam", base: 130 },
+  { id: "gravity", name: "Unlicensed Gravity", base: 240 },
+  { id: "threats", name: "Polite Threats", base: 160 },
+  { id: "honey", name: "Clock Honey", base: 100 },
+  { id: "echoes", name: "Spare Echoes", base: 110 },
+  { id: "moss", name: "Bureaucratic Moss", base: 70 },
+  { id: "numbers", name: "Warm Numbers", base: 180 },
+];
+
+export const PIRATE_NAMES = [
+  "Excuse Me", "Volume Warning", "Unsolicited Sequel", "Loud Uncle",
+  "Please Hold", "Free Samples", "Wrong Number", "Mild Threat",
+  "Extra Sauce", "No Thank You", "Standing Ovation", "The Aside",
+];
+
+export const SOLO_NAMES = ["The Footnote", "Captain Meanwhile", "Soloist Annoyed"];
+
+export const BARKS = [
+  "SORRY ABOUT THE LASERS",
+  "THIS IS A ROBBERY, PLEASE",
+  "YOUR CARGO LOOKS AVAILABLE",
+  "I BROUGHT A FORM FOR THIS",
+  "EXCUSE THE VOLUME",
+  "WE CAN SPLIT THE MOON",
+  "I'M BETWEEN HOBBIES",
+  "PLEASE HOLD STILL",
+];
+
+const PRICE = {
+  brine:    { starlight: 0.55, regret: 0.68, gravity: 1.35, threats: 1.25, honey: 1.15, echoes: 1.30, moss: 1.15, numbers: 1.60 },
+  orchard:  { starlight: 1.50, regret: 1.20, gravity: 1.15, threats: 1.30, honey: 0.55, echoes: 0.58, moss: 1.25, numbers: 1.15 },
+  courtesy: { starlight: 1.20, regret: 1.35, gravity: 1.25, threats: 0.55, honey: 1.20, echoes: 1.15, moss: 0.62, numbers: 1.30 },
+  museum:   { starlight: 1.70, regret: 1.15, gravity: 0.58, threats: 1.30, honey: 1.45, echoes: 1.05, moss: 1.20, numbers: 1.35 },
+  census:   { starlight: 1.25, regret: 1.55, gravity: 1.20, threats: 1.10, honey: 1.20, echoes: 1.35, moss: 0.60, numbers: 0.54 },
+  hum:      { starlight: 1.15, regret: 0.60, gravity: 0.57, threats: 1.55, honey: 1.25, echoes: 1.40, moss: 1.15, numbers: 1.20 },
+  parcel:   { starlight: 1.05, regret: 1.08, gravity: 1.35, threats: 0.82, honey: 0.95, echoes: 0.78, moss: 0.80, numbers: 1.00 },
+};
+
+export const SYSTEMS = [
+  {
+    id: "brine",
+    name: "Brine Halo",
+    short: "Brine",
+    mapX: 28, mapY: 70,
+    blurb: "Edible weather around a moon that will not commit.",
+    specialty: "Cheap: pickled starlight, regret jam. Pays well for warm numbers.",
+    accent: "#3ec6b8",
+    nebula: ["rgba(30,150,140,0.55)", "rgba(14,70,110,0.5)", "rgba(210,140,60,0.35)"],
+    links: ["orchard", "courtesy"],
+    prices: PRICE.brine,
+    bodies: [
+      { id: "pickle", kind: "station", name: "Pickle Dock", x: 2000, y: 1980, r: 42, look: "station",
+        desc: "The dockmaster lives in a jar on purpose and stamps forms with a damp thumb. Fuel here smells like dill." },
+      { id: "wetmoon", kind: "planet", name: "Wet Moon of Maybe", x: 1040, y: 1380, r: 84, look: "banded", ring: true,
+        desc: "Rain falls up on Tuesdays and sideways during apologies. It exports pickled starlight because it cannot commit to being bright." },
+    ],
+    beacons: [
+      { to: "orchard", x: 3280, y: 760 },
+      { to: "courtesy", x: 700, y: 900 },
+    ],
+  },
+  {
+    id: "orchard",
+    name: "Static Orchard",
+    short: "Orchard",
+    mapX: 72, mapY: 52,
+    blurb: "Trees rooted in old parking orbits. Fruit ripens when ignored.",
+    specialty: "Cheap: clock honey, spare echoes. Hungry for pickled starlight.",
+    accent: "#8fce6a",
+    nebula: ["rgba(90,160,60,0.5)", "rgba(40,80,30,0.45)", "rgba(190,160,80,0.35)"],
+    links: ["brine", "census", "hum"],
+    prices: PRICE.orchard,
+    bodies: [
+      { id: "trellis", kind: "station", name: "The Trellis", x: 2000, y: 2000, r: 42, look: "station",
+        desc: "A wooden lattice parked in orbit, knotted with vines that eat rumors. Do not lick the rails." },
+      { id: "bark", kind: "planet", name: "Bark Without Weather", x: 2860, y: 2700, r: 96, look: "grove",
+        desc: "A forest wrapped around a lost climate. Fruit ripens when ignored, which is why the honey is always early." },
+    ],
+    beacons: [
+      { to: "brine", x: 720, y: 3180 },
+      { to: "census", x: 3320, y: 820 },
+      { to: "hum", x: 980, y: 640 },
+    ],
+  },
+  {
+    id: "courtesy",
+    name: "Courtesy Void",
+    short: "Courtesy",
+    mapX: 18, mapY: 44,
+    blurb: "Local law says you wave at explosions.",
+    specialty: "Cheap: polite threats, bureaucratic moss.",
+    accent: "#cbb6ff",
+    nebula: ["rgba(170,150,230,0.5)", "rgba(90,70,160,0.4)", "rgba(240,210,230,0.35)"],
+    links: ["brine", "museum", "parcel"],
+    prices: PRICE.courtesy,
+    bodies: [
+      { id: "remain", kind: "station", name: "Please Remain", x: 1960, y: 2080, r: 42, look: "station",
+        desc: "Take a number, a seat, and a breath. The breath is returned later, warmer, with a receipt." },
+      { id: "thankyou", kind: "planet", name: "Thank You", x: 2780, y: 1280, r: 108, look: "bow", ring: true,
+        desc: "A gas giant that bows when scanned. Storms end in signed notes. Mining without a card is considered loud." },
+    ],
+    beacons: [
+      { to: "brine", x: 3240, y: 3240 },
+      { to: "museum", x: 1880, y: 620 },
+      { to: "parcel", x: 3300, y: 2860 },
+    ],
+  },
+  {
+    id: "museum",
+    name: "Museum of Unfinished Storms",
+    short: "Museum",
+    mapX: 24, mapY: 16,
+    blurb: "Weather that left before the ending. Labels outnumber stars.",
+    specialty: "Cheap: unlicensed gravity. Pays dearly for pickled starlight.",
+    accent: "#f0a0b8",
+    nebula: ["rgba(200,100,130,0.45)", "rgba(80,40,60,0.5)", "rgba(210,180,140,0.3)"],
+    links: ["courtesy", "hum"],
+    prices: PRICE.museum,
+    bodies: [
+      { id: "gallery", kind: "station", name: "Gallery of Almost", x: 1980, y: 1900, r: 44, look: "station",
+        desc: "Every airlock is labeled Door, Interrupted. The shop sells gravity with the tags still on." },
+      { id: "exhibit", kind: "planet", name: "Exhibit Four", x: 1160, y: 2580, r: 78, look: "plaque",
+        desc: "A planet kept under glass, including the glass. The plaque says it used to rain, then the rain got stage fright." },
+    ],
+    beacons: [
+      { to: "courtesy", x: 680, y: 3280 },
+      { to: "hum", x: 3360, y: 1560 },
+    ],
+  },
+  {
+    id: "census",
+    name: "Glass Census",
+    short: "Census",
+    mapX: 84, mapY: 18,
+    blurb: "Every pebble has paperwork. Most of it complies.",
+    specialty: "Cheap: warm numbers, bureaucratic moss. Pays for regret jam.",
+    accent: "#9fd4ff",
+    nebula: ["rgba(120,190,240,0.45)", "rgba(40,70,110,0.5)", "rgba(230,236,245,0.28)"],
+    links: ["orchard", "parcel"],
+    prices: PRICE.census,
+    bodies: [
+      { id: "counting", kind: "station", name: "Counting House", x: 2060, y: 2000, r: 42, look: "station",
+        desc: "Shaped like a column of figures. Speak clearly. The decimals are sensitive and unionized." },
+      { id: "population", kind: "planet", name: "Population: Yes", x: 2700, y: 1180, r: 80, look: "census",
+        desc: "Landing adds you to the census, and so does thinking about landing. Bring warm numbers or a spare pen." },
+    ],
+    beacons: [
+      { to: "orchard", x: 700, y: 3120 },
+      { to: "parcel", x: 860, y: 2460 },
+    ],
+  },
+  {
+    id: "hum",
+    name: "Low Hum",
+    short: "Low Hum",
+    mapX: 50, mapY: 28,
+    blurb: "A held note. Ships arrive slightly sharp.",
+    specialty: "Cheap: unlicensed gravity, regret jam. Pays for polite threats.",
+    accent: "#f0b45a",
+    nebula: ["rgba(210,150,70,0.48)", "rgba(90,50,16,0.5)", "rgba(240,220,170,0.28)"],
+    links: ["orchard", "museum", "parcel"],
+    prices: PRICE.hum,
+    bodies: [
+      { id: "ear", kind: "station", name: "The Ear", x: 2000, y: 2140, r: 42, look: "station",
+        desc: "It hears your engine early and hums the last note back, half a cent sharp, like a question at a door." },
+      { id: "note", kind: "planet", name: "A Note Held Too Long", x: 1280, y: 1240, r: 90, look: "note",
+        desc: "The world is one tone. Cities are rests. Stay long enough and your fillings join the choir." },
+    ],
+    beacons: [
+      { to: "orchard", x: 3280, y: 3120 },
+      { to: "museum", x: 640, y: 1680 },
+      { to: "parcel", x: 2200, y: 3360 },
+    ],
+  },
+  {
+    id: "parcel",
+    name: "Parcel Orbit",
+    short: "Parcel",
+    mapX: 52, mapY: 78,
+    blurb: "Mail circled long enough to become geography.",
+    specialty: "A careful middle. Slightly cheap echoes, moss, and threats.",
+    accent: "#e7c8a0",
+    nebula: ["rgba(190,160,120,0.42)", "rgba(110,70,40,0.45)", "rgba(80,170,160,0.3)"],
+    links: ["courtesy", "census", "hum"],
+    prices: PRICE.parcel,
+    bodies: [
+      { id: "lostmail", kind: "station", name: "Lost & Misdelivered", x: 1960, y: 2040, r: 42, look: "station",
+        desc: "Parcels orbit the counter until claimed, denied, or evolved. One of them draws a pension." },
+      { id: "envelope", kind: "planet", name: "The Envelope", x: 3140, y: 1700, r: 72, look: "envelope",
+        desc: "A flat world with a flap. Inside is a smaller weather system and a letter nobody will read aloud." },
+    ],
+    beacons: [
+      { to: "courtesy", x: 620, y: 1960 },
+      { to: "census", x: 3380, y: 760 },
+      { to: "hum", x: 1560, y: 640 },
+    ],
+  },
+];
+
+const byId = Object.fromEntries(SYSTEMS.map((s) => [s.id, s]));
+
+export function system(id) {
+  return byId[id];
+}
+
+export function bodyById(id) {
+  for (const sys of SYSTEMS) {
+    const body = sys.bodies.find((b) => b.id === id);
+    if (body) return { system: sys, body };
+  }
+  return null;
+}
+
+export function route(fromId, toId) {
+  if (fromId === toId) return [fromId];
+  const q = [[fromId]];
+  const seen = new Set([fromId]);
+  while (q.length) {
+    const path = q.shift();
+    const here = path[path.length - 1];
+    const links = system(here)?.links || [];
+    for (const link of links) {
+      if (seen.has(link)) continue;
+      const next = path.concat(link);
+      if (link === toId) return next;
+      seen.add(link);
+      q.push(next);
+    }
+  }
+  return [fromId];
+}
+
+export function launchPose(body) {
+  return { x: body.x, y: body.y + body.r + 100, angle: Math.PI };
+}
+
+export function auditGalaxy() {
+  const ids = new Set();
+  const bodies = new Set();
+  const goodIds = GOODS.map((g) => g.id);
+  if (SYSTEMS.length < 5) throw new Error("Need a handful of systems");
+  for (const sys of SYSTEMS) {
+    if (ids.has(sys.id)) throw new Error("Duplicate system " + sys.id);
+    ids.add(sys.id);
+    if (!sys.name || !sys.blurb || !sys.specialty) throw new Error("Missing copy " + sys.id);
+    if (sys.mapX < 0 || sys.mapX > 100 || sys.mapY < 0 || sys.mapY > 100) {
+      throw new Error("Map position " + sys.id);
+    }
+    for (const gid of goodIds) {
+      const p = sys.prices[gid];
+      if (typeof p !== "number" || p < 0.4 || p > 1.9) throw new Error("Price " + sys.id + " " + gid);
+    }
+    const beaconTos = sys.beacons.map((b) => b.to).sort();
+    const links = [...sys.links].sort();
+    if (beaconTos.join() !== links.join()) {
+      throw new Error("Beacons/links mismatch " + sys.id);
+    }
+    for (const link of sys.links) {
+      if (!byId[link]) throw new Error("Bad link " + sys.id + " -> " + link);
+      if (!byId[link].links.includes(sys.id)) throw new Error("Asymmetric link " + sys.id + " / " + link);
+    }
+    const spots = [];
+    for (const body of sys.bodies) {
+      if (bodies.has(body.id)) throw new Error("Duplicate body " + body.id);
+      bodies.add(body.id);
+      if (body.x < 200 || body.y < 200 || body.x > WORLD - 200 || body.y > WORLD - 200) {
+        throw new Error("Body off map " + body.id);
+      }
+      spots.push(body);
+    }
+    for (const beacon of sys.beacons) {
+      if (beacon.x < 240 || beacon.y < 240 || beacon.x > WORLD - 240 || beacon.y > WORLD - 240) {
+        throw new Error("Beacon off map " + sys.id + " " + beacon.to);
+      }
+      for (const body of spots) {
+        const d = Math.hypot(body.x - beacon.x, body.y - beacon.y);
+        if (d < body.r + 160) throw new Error("Beacon hits body " + body.id + " / " + beacon.to);
+      }
+      const pose = launchPose(sys.bodies.find((b) => b.kind === "station"));
+      if (Math.hypot(pose.x - beacon.x, pose.y - beacon.y) < 220) {
+        throw new Error("Beacon on the launch pad " + sys.id);
+      }
+    }
+  }
+  for (let i = 0; i < SYSTEMS.length; i++) {
+    for (let j = i + 1; j < SYSTEMS.length; j++) {
+      const a = SYSTEMS[i];
+      const b = SYSTEMS[j];
+      const d = Math.hypot(a.mapX - b.mapX, a.mapY - b.mapY);
+      if (d < 18) throw new Error("Chart nodes overlap " + a.id + " " + b.id);
+    }
+  }
+  // Touch hash so a bad import fails loudly in audit's module graph.
+  if (hash("audit") === 0) throw new Error("hash");
+}

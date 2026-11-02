@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#07060f">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="Weird Velocity — a pocket space trading game.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Weird Velocity">
+  <meta name="format-detection" content="telephone=no">
+  <title>Weird Velocity</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <canvas id="view"></canvas>
+    <header id="hud">
+      <div id="hud-left">
+        <h1 id="sysname">Brine Halo</h1>
+        <p id="missionline"></p>
+        <p id="logline"></p>
+      </div>
+      <div id="hud-right">
+        <div id="credits">0 cr</div>
+        <div id="speed">v 0</div>
+        <button id="mute" type="button">Sound</button>
+      </div>
+      <div id="bars">
+        <div class="meter shield"><span>SHD</span><div class="track"><i id="shieldbar"></i></div></div>
+        <div class="meter armor"><span>ARM</span><div class="track"><i id="armorbar"></i></div></div>
+        <div class="meter fuel" id="fuelmeter"><span>FUEL</span><div class="track"><i id="fuelbar"></i></div></div>
+      </div>
+    </header>
+    <canvas id="minimap" width="92" height="92" aria-hidden="true"></canvas>
+    <div id="banner" hidden></div>
+    <div id="controls">
+      <div id="stick" aria-label="Flight stick"><div id="knob"></div></div>
+      <div id="cluster">
+        <button id="act" type="button" disabled>Land</button>
+        <div id="cluster-row">
+          <button id="brake" type="button">Stop</button>
+          <button id="fire" type="button">Fire</button>
+        </div>
+        <button id="mapbtn" type="button">Chart</button>
+      </div>
+    </div>
+    <div id="overlay"></div>
+  </div>
+  <script type="module">
+    if (new URLSearchParams(location.search).get("dev") === "1") {
+      import("./devbot.js").catch((err) => console.error(err));
+    }
+  </script>
+  <script type="module" src="./main.js"></script>
+</body>
+</html>

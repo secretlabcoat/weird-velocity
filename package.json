@@ -1,0 +1,6 @@
+{
+  "name": "weird-velocity",
+  "private": true,
+  "type": "module",
+  "description": "Weird Velocity, a phone-first space trading game. No build step. Serve the folder statically."
+}

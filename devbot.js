@@ -285,7 +285,7 @@ function install() {
       touch-action: manipulation;
     }
     #devbot {
-      position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
       display: flex; flex-direction: column;
       max-height: min(68vh, 560px);
       background: rgba(8, 10, 16, 0.96);
@@ -293,7 +293,19 @@ function install() {
       font: 16px/1.35 ui-sans-serif, system-ui, sans-serif;
       color: #efe9dc;
     }
-    #dev-main { overflow: auto; padding: 8px 8px 4px; display: flex; flex-direction: column; gap: 6px; }
+    #devbot.pinned-top {
+      top: calc(env(safe-area-inset-top) + 8px);
+      bottom: auto;
+      left: calc(env(safe-area-inset-left) + 8px);
+      right: calc(env(safe-area-inset-right) + 8px);
+      max-height: 60vh;
+      overflow: auto;
+      border-radius: 16px;
+      border: 1px solid rgba(255,244,220,0.22);
+      box-shadow: 0 16px 40px rgba(0,0,0,0.45);
+    }
+    #devbot.pinned-top #dev-status { padding-bottom: 8px; }
+    #dev-main { overflow: visible; padding: 8px 8px 4px; display: flex; flex-direction: column; gap: 6px; }
     #devbot textarea, #devbot input {
       font: 16px/1.35 ui-sans-serif, system-ui, sans-serif;
       color: #efe9dc; background: #12151f;
@@ -303,9 +315,6 @@ function install() {
       user-select: text;
       -webkit-touch-callout: default;
     }
-    #devbot .field-row { display: flex; gap: 6px; align-items: stretch; }
-    #devbot .field-row input { flex: 1; min-width: 0; width: auto; }
-    #devbot button.paste { flex: 0 0 auto; min-width: 72px; padding: 0 10px; }
     #dev-text { min-height: 52px; max-height: 120px; resize: vertical; }
     #devbot label { display: flex; flex-direction: column; gap: 2px; font-size: 13px; color: #b7b0a2; }
     #devbot .row { display: flex; gap: 6px; }
@@ -357,20 +366,14 @@ function install() {
           <input id="dev-base" type="url" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off">
         </label>
         <label>AI key
-          <span class="field-row">
-            <input id="dev-key" type="text" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off">
-            <button type="button" class="paste" data-paste="dev-key">Paste</button>
-          </span>
+          <input id="dev-key" type="text" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off">
         </label>
         <p id="dev-keywarn" hidden>Gemini keys usually start with AIza. If this is a Gemini key, double-check it.</p>
         <label>Model
           <input id="dev-model" type="text" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off">
         </label>
         <label>GitHub token
-          <span class="field-row">
-            <input id="dev-gh" type="text" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off" placeholder="Fine-grained token, contents read and write">
-            <button type="button" class="paste" data-paste="dev-gh">Paste</button>
-          </span>
+          <input id="dev-gh" type="text" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off" placeholder="Fine-grained token, contents read and write">
         </label>
         <div class="row">
           <button type="submit" id="dev-save" class="grow">Save</button>
@@ -439,32 +442,56 @@ function install() {
     warn.hidden = !(key && gemini && !key.startsWith("AIza"));
   }
 
+  function placePinned() {
+    if (!root.classList.contains("pinned-top")) {
+      root.style.top = "";
+      root.style.maxHeight = "";
+      return;
+    }
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const margin = 8;
+    root.style.top = (vv.offsetTop + margin) + "px";
+    const available = Math.max(140, vv.height - margin * 2);
+    root.style.maxHeight = Math.min(window.innerHeight * 0.6, available) + "px";
+  }
+
+  function pinDevbot(pin) {
+    root.classList.toggle("pinned-top", pin);
+    placePinned();
+    const pinned = root.classList.contains("pinned-top");
+    document.documentElement.style.setProperty("--devbot-h", pinned ? "0px" : root.offsetHeight + "px");
+  }
+
   function openSettings(open) {
     settings.hidden = !open;
     compose.hidden = open;
     root.querySelector("#dev-gear").classList.toggle("on", open);
     if (open) fillSettings();
+    const typing = root.contains(document.activeElement) && document.activeElement.matches("input, textarea");
+    pinDevbot(open || typing);
   }
 
   keyInput.addEventListener("input", refreshKeyWarn);
   baseInput.addEventListener("input", refreshKeyWarn);
 
-  root.querySelectorAll("[data-paste]").forEach((button) => {
-    button.addEventListener("click", async () => {
-      const input = document.getElementById(button.dataset.paste);
-      try {
-        if (!navigator.clipboard || !navigator.clipboard.readText) {
-          throw new Error("This browser has no clipboard read.");
-        }
-        const text = await navigator.clipboard.readText();
-        input.value = text.trim();
-        input.dispatchEvent(new Event("input", { bubbles: true }));
-        input.focus();
-      } catch (err) {
-        setStatus("Couldn't paste. Allow paste when the phone asks, or long-press the box.", err && err.message ? err.message : String(err), "bad");
-      }
-    });
+  root.addEventListener("focusin", (event) => {
+    const field = event.target;
+    if (!field.matches || !field.matches("input, textarea")) return;
+    pinDevbot(true);
+    setTimeout(() => field.scrollIntoView({ block: "center", inline: "nearest" }), 60);
   });
+  root.addEventListener("focusout", () => {
+    setTimeout(() => {
+      const active = document.activeElement;
+      const stillTyping = root.contains(active) && active.matches && active.matches("input, textarea");
+      if (!stillTyping && settings.hidden) pinDevbot(false);
+    }, 80);
+  });
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", placePinned);
+    window.visualViewport.addEventListener("scroll", placePinned);
+  }
 
   let recognition = null;
   root.querySelector("#dev-mic").addEventListener("click", () => {
@@ -508,7 +535,8 @@ function install() {
   go.addEventListener("click", () => runEdit());
 
   const watcher = new ResizeObserver(() => {
-    document.documentElement.style.setProperty("--devbot-h", root.offsetHeight + "px");
+    const pinned = root.classList.contains("pinned-top");
+    document.documentElement.style.setProperty("--devbot-h", pinned ? "0px" : root.offsetHeight + "px");
   });
   watcher.observe(root);
 

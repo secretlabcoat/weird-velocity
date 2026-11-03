@@ -101,6 +101,7 @@ function llmModel() {
   return model;
 }
 function sleep(ms) {
+  if (typeof globalThis.__DEVBOT_PAUSE === "function") return globalThis.__DEVBOT_PAUSE(ms);
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 let reportStatus = () => {};
@@ -116,15 +117,6 @@ function stripFences(text) {
   const inner = trimmed.match(/```[a-zA-Z0-9]*\s*\n([\s\S]*?)```/);
   if (inner) return inner[1];
   return trimmed;
-}
-
-function messageText(data) {
-  const content = data.choices?.[0]?.message?.content;
-  if (typeof content === "string") return content;
-  if (Array.isArray(content)) {
-    return content.map((part) => part.text || part.content || "").join("\n");
-  }
-  throw Object.assign(new Error("The model returned no text."), { where: "llm" });
 }
 
 function utf8ToB64(str) {
@@ -203,27 +195,180 @@ function parsePick(text) {
   return files;
 }
 
-function parseEdits(text, expected) {
-  const cleaned = stripFences(text);
-  const found = new Map();
+const HINTS = [
+  {
+    test: /laser|bolt|colour|color|visual|glow|draw/i,
+    files: ["render.js", "fx.js", "combat.js", "style.css"],
+    words: ["laser", "bolt", "strokeStyle"],
+  },
+  { test: /price|cargo|trade|buy|sell|fuel/i, files: ["trade.js", "data/galaxy.js"], words: ["price", "cargo"] },
+  { test: /mission|bounty|errand|quest/i, files: ["missions.js", "ui.js"], words: ["mission", "bounty"] },
+  { test: /pirate|damage|shield|armor|weapon/i, files: ["combat.js", "sim.js"], words: ["shield", "armor"] },
+  { test: /thrust|turn|brake|stick|physic/i, files: ["physics.js", "input.js"], words: ["thrust", "brake"] },
+  { test: /button|layout|font|safe area/i, files: ["style.css", "ui.js"], words: ["button"] },
+  { test: /planet|system|commodit|galaxy/i, files: ["data/galaxy.js"], words: ["planet"] },
+];
+
+const STOP_WORDS = new Set(["the", "and", "for", "make", "with", "that", "this", "from", "into", "please", "them", "your"]);
+
+export function suggestFiles(request) {
+  const files = [];
+  for (const hint of HINTS) {
+    if (!hint.test.test(request)) continue;
+    for (const path of hint.files) {
+      if (!files.includes(path)) files.push(path);
+      if (files.length === MAX_FILES) return files;
+    }
+  }
+  return files;
+}
+
+export function searchWords(request) {
+  const words = new Set();
+  const raw = String(request || "").toLowerCase().match(/[a-z][a-z0-9]{2,}/g) || [];
+  for (const word of raw) {
+    if (STOP_WORDS.has(word)) continue;
+    words.add(word);
+    if (word.endsWith("s") && word.length > 4) words.add(word.slice(0, -1));
+  }
+  for (const hint of HINTS) {
+    if (hint.test.test(request)) hint.words.forEach((word) => words.add(word.toLowerCase()));
+  }
+  return [...words];
+}
+
+export function snippetFor(text, words, pad = 40) {
+  const lines = String(text || "").split("\n");
+  const lowered = words.map((word) => word.toLowerCase()).filter(Boolean);
+  if (!lowered.length) return "";
+  const hits = [];
+  lines.forEach((line, index) => {
+    const low = line.toLowerCase();
+    const hit = lowered.some((word) => {
+      if (word.length < 5) {
+        return new RegExp("(?:^|[^a-z0-9])" + escapeRegExp(word) + "(?:[^a-z0-9]|$)").test(low);
+      }
+      return low.includes(word);
+    });
+    if (hit) hits.push(index);
+  });
+  if (!hits.length) return "";
+  const ranges = [];
+  for (const hit of hits) {
+    const start = Math.max(0, hit - pad);
+    const end = Math.min(lines.length - 1, hit + pad);
+    const last = ranges[ranges.length - 1];
+    if (last && start <= last.end + 1) last.end = Math.max(last.end, end);
+    else ranges.push({ start, end });
+  }
+  const chunks = [];
+  let used = 0;
+  for (const range of ranges) {
+    if (used >= 120) break;
+    const end = Math.min(range.end, range.start + (120 - used) - 1);
+    chunks.push(lines.slice(range.start, end + 1).join("\n"));
+    used += end - range.start + 1;
+  }
+  return chunks.join("\n...\n");
+}
+
+function escapeRegExp(text) {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function applyOne(source, find, replace) {
+  if (!find) return null;
+  const at = source.indexOf(find);
+  if (at !== -1) return source.slice(0, at) + replace + source.slice(at + find.length);
+  const parts = find.trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return null;
+  const match = new RegExp(parts.map(escapeRegExp).join("\\s+")).exec(source);
+  if (!match) return null;
+  return source.slice(0, match.index) + replace + source.slice(match.index + match[0].length);
+}
+
+function wrappedFiles(text) {
+  const found = [];
   const re = /<<<FILE ([^>\n]+)>>>[\r\n]*([\s\S]*?)<<<END>>>/g;
   let match;
-  while ((match = re.exec(cleaned))) {
+  while ((match = re.exec(text))) {
     const path = match[1].trim().replace(/^\.\//, "");
-    if (expected.includes(path)) found.set(path, match[2].replace(/\s+$/, "\n"));
+    if (!ALLOWED.has(path)) continue;
+    found.push({ path, content: match[2].replace(/\s+$/, "\n") });
   }
-  if (!found.size) {
-    try {
-      const data = JSON.parse(cleaned.match(/\{[\s\S]*\}/)?.[0] || cleaned);
-      const list = data.files || [];
-      for (const item of list) {
-        if (item && expected.includes(item.path) && typeof item.content === "string") {
-          found.set(item.path, item.content.replace(/\s+$/, "\n"));
-        }
+  return found;
+}
+
+function unusable(text) {
+  const err = new Error("No usable edits in the reply.");
+  err.where = "edit";
+  err.reply = String(text || "").slice(0, 200);
+  return err;
+}
+
+export function parseEditReply(text) {
+  const raw = String(text || "");
+  const cleaned = stripFences(raw);
+  let data = null;
+  try {
+    data = JSON.parse(cleaned);
+  } catch {
+    const match = cleaned.match(/\{[\s\S]*\}/);
+    if (match) {
+      try { data = JSON.parse(match[0]); } catch { data = null; }
+    }
+  }
+  if (data && Array.isArray(data.edits)) {
+    const edits = [];
+    for (const item of data.edits) {
+      if (!item || typeof item.find !== "string" || typeof item.replace !== "string") continue;
+      const path = String(item.path || "").trim().replace(/^\.\//, "");
+      if (!ALLOWED.has(path)) continue;
+      edits.push({ path, find: item.find, replace: item.replace });
+    }
+    if (edits.length) return { kind: "edits", edits, summary: String(data.summary || "") };
+  }
+  const files = wrappedFiles(cleaned);
+  if (files.length) return { kind: "files", files, summary: "" };
+  throw unusable(raw);
+}
+
+export function applyEditPlan(originals, replyText) {
+  const parsed = parseEditReply(replyText);
+  const byPath = new Map(originals.map((file) => [file.path, file.text]));
+  const changed = new Map();
+  const skipped = [];
+  if (parsed.kind === "files") {
+    for (const file of parsed.files) {
+      const prior = byPath.get(file.path);
+      if (prior == null) {
+        skipped.push(file.path + ": that file was not loaded.");
+        continue;
       }
-    } catch { /* the wrapper is the format we asked for */ }
+      let valid = false;
+      try { valid = looksValid(file.path, file.content); } catch { valid = false; }
+      if (!valid) {
+        skipped.push(file.path + ": the replacement did not look like a whole file, so it was skipped.");
+        continue;
+      }
+      if (file.content.trim() !== prior.trim()) changed.set(file.path, file.content.endsWith("\n") ? file.content : file.content + "\n");
+    }
+    return { changed, skipped, summary: parsed.summary };
   }
-  return expected.filter((path) => found.has(path)).map((path) => ({ path, content: found.get(path) }));
+  for (const edit of parsed.edits) {
+    const source = changed.get(edit.path) ?? byPath.get(edit.path);
+    if (source == null) {
+      skipped.push(edit.path + ": that file was not loaded, so that edit was skipped.");
+      continue;
+    }
+    const next = applyOne(source, edit.find, edit.replace);
+    if (next == null) {
+      skipped.push(edit.path + ": couldn't find that text, so that edit was skipped.");
+      continue;
+    }
+    changed.set(edit.path, next);
+  }
+  return { changed, skipped, summary: parsed.summary };
 }
 
 function detailLine(err) {
@@ -234,6 +379,7 @@ function detailLine(err) {
   if (err && err.status) parts.push("HTTP " + err.status);
   if (err && err.url) parts.push(err.url);
   if (err && err.body && !parts.join(" ").includes(String(err.body).slice(0, 80))) parts.push(err.body);
+  if (err && err.reply && !parts.join(" ").includes(String(err.reply).slice(0, 40))) parts.push(err.reply);
   const line = parts.join(" — ").trim();
   return (line || String(err || "Unknown error")).slice(0, 700);
 }
@@ -248,6 +394,8 @@ function explain(err) {
   const modelMissing = status === 404 || /no longer available|model.*(not found|unsupported|does not exist)|unknown model|invalid model|not supported/.test(low);
   if (where === "pick") {
     plain = "The AI couldn't tell which file to change. Try saying it more simply.";
+  } else if (where === "cutoff") {
+    plain = "The AI's answer got cut off, try a smaller request";
   } else if (where === "edit") {
     plain = "The AI didn't return a usable file. Nothing was saved.";
   } else if (where === "github" || where === "save") {
@@ -274,7 +422,14 @@ function explain(err) {
   return { plain, raw };
 }
 
-async function chatOnce(messages, maxTokens, model) {
+function choiceText(choice) {
+  const content = choice?.message?.content;
+  if (typeof content === "string") return content;
+  if (Array.isArray(content)) return content.map((part) => part.text || part.content || "").join("\n");
+  return "";
+}
+
+async function chatOnce(messages, maxTokens, model, json) {
   const url = chatUrl(llmBase());
   const key = cleanSecret(load(LS.key));
   let response;
@@ -289,7 +444,8 @@ async function chatOnce(messages, maxTokens, model) {
         model,
         temperature: 0.2,
         stream: false,
-        ...(maxTokens ? { max_tokens: maxTokens } : {}),
+        max_tokens: maxTokens || 4096,
+        ...(json ? { response_format: { type: "json_object" } } : {}),
         messages,
       }),
     });
@@ -312,24 +468,41 @@ async function chatOnce(messages, maxTokens, model) {
   let data;
   try { data = JSON.parse(raw); }
   catch {
-    throw Object.assign(new Error("AI returned non-JSON. " + raw.slice(0, 200)), {
-      where: "llm",
-      body: raw.slice(0, 300),
-    });
+    const failed = new Error("AI returned non-JSON. " + raw.slice(0, 200));
+    failed.where = "llm";
+    failed.body = raw.slice(0, 300);
+    failed.url = url;
+    throw failed;
   }
-  return messageText(data);
+  const choice = data.choices?.[0] || {};
+  const text = choiceText(choice);
+  const finishReason = String(choice.finish_reason || "");
+  if (finishReason === "length" || finishReason === "MAX_TOKENS") {
+    const failed = new Error("The AI's answer got cut off, try a smaller request");
+    failed.where = "cutoff";
+    failed.reply = text.slice(0, 200);
+    failed.url = url;
+    throw failed;
+  }
+  if (!text) {
+    const failed = new Error("The model returned no text.");
+    failed.where = "llm";
+    failed.url = url;
+    throw failed;
+  }
+  return { text, finishReason };
 }
 
 function busy(err) {
   return !!(err && (err.status === 503 || err.status === 429));
 }
 
-async function fetchChat(messages, maxTokens) {
+export async function fetchChat(messages, maxTokens, json) {
   const primary = llmModel();
   let lastErr;
   for (let attempt = 0; attempt <= BUSY_WAITS.length; attempt++) {
     try {
-      return await chatOnce(messages, maxTokens, primary);
+      return await chatOnce(messages, maxTokens, primary, json);
     } catch (err) {
       lastErr = err;
       if (!busy(err) || attempt === BUSY_WAITS.length) break;
@@ -340,7 +513,7 @@ async function fetchChat(messages, maxTokens) {
   if (busy(lastErr) && primary !== FALLBACK_MODEL) {
     reportStatus("AI is busy, retrying…", detailLine(lastErr));
     try {
-      return await chatOnce(messages, maxTokens, FALLBACK_MODEL);
+      return await chatOnce(messages, maxTokens, FALLBACK_MODEL, json);
     } catch (err) {
       throw err;
     }
@@ -683,7 +856,7 @@ function install() {
           const reply = await fetchChat([
             { role: "user", content: "Reply with the single word ok" },
           ], 64);
-          if (/\bok\b/i.test(reply)) add(true, "AI key works. It replied ok.");
+          if (/\bok\b/i.test(reply.text)) add(true, "AI key works. It replied ok.");
           else add(false, "AI key reached the service, but the reply was not ok. The model name might be wrong.");
         } catch (err) {
           const { plain } = explain(err);
@@ -736,19 +909,22 @@ function install() {
         setStatus("Add your AI key and GitHub token with the gear first.", "", "bad");
         return;
       }
-      const token = load(LS.gh).trim();
+      const token = cleanSecret(load(LS.gh));
       setStatus("Picking which file to change…");
-      const pickText = await fetchChat([
-        {
-          role: "system",
-          content: "You choose source files for a tiny plain-ES-module game with no build step. Reply with JSON only, no markdown: {\"files\":[\"path\"]}. Pick 1 to 3 paths from the list. Do not invent paths. Prefer the smallest set.",
-        },
-        {
-          role: "user",
-          content: `Files:\n${catalogText()}\n\nRequest: ${instruction}`,
-        },
-      ], 200);
-      const paths = parsePick(pickText);
+      let paths = suggestFiles(instruction);
+      if (!paths.length) {
+        const picked = await fetchChat([
+          {
+            role: "system",
+            content: "You choose source files for a tiny plain-ES-module game with no build step. Reply with JSON only: {\"files\":[\"path\"]}. Pick 1 to 3 paths from the list. Do not invent paths. Hints: lasers, colors, and visuals -> render.js, fx.js, combat.js, style.css. Prices -> trade.js. Missions -> missions.js.",
+          },
+          {
+            role: "user",
+            content: `Files:\n${catalogText()}\n\nRequest: ${instruction}`,
+          },
+        ], 512, true);
+        paths = parsePick(picked.text);
+      }
 
       setStatus("Asking AI for the change…");
       const originals = [];
@@ -756,39 +932,41 @@ function install() {
         const got = await ghJson(contentsUrl(path) + "?ref=main", token);
         originals.push({ path, sha: got.sha, text: b64ToUtf8(got.content || "") });
       }
-      const bundle = originals.map((file) => `FILE ${file.path}\n${file.text}`).join("\n\n");
-      const editedText = await fetchChat([
+      const words = searchWords(instruction);
+      const bundle = originals.map((file) => {
+        const snippet = snippetFor(file.text, words);
+        return `FILE ${file.path}\n${snippet || "(no matching lines)"}`;
+      }).join("\n\n");
+      const reply = await fetchChat([
         {
           role: "system",
-          content: "You edit Weird Velocity, plain ES modules, no build step. Return each changed file in full, using this wrapper and nothing else:\n<<<FILE path>>>\ncomplete file\n<<<END>>>\nNo commentary. No secrets. Return whole files.",
+          content: "Return ONLY JSON: {\"edits\":[{\"path\":\"file.js\",\"find\":\"exact existing text\",\"replace\":\"new text\"}],\"summary\":\"...\"}. Copy find exactly from the snippets, with no line numbers. Change as little as possible. Do not rewrite the whole file.",
         },
         {
           role: "user",
           content: `Request: ${instruction}\n\n${bundle}`,
         },
-      ]);
-      const edits = parseEdits(editedText, paths);
-      if (!edits.length) {
-        throw Object.assign(new Error("No wrapped files in the reply."), { where: "edit" });
+      ], 4096, true);
+      let plan;
+      try {
+        plan = applyEditPlan(originals, reply.text);
+      } catch (err) {
+        if (!err.reply) err.reply = String(reply.text || "").slice(0, 200);
+        throw err;
       }
       const ready = [];
-      for (const edit of edits) {
-        const prior = originals.find((file) => file.path === edit.path);
-        if (!prior || edit.content.trim() === prior.text.trim()) continue;
-        let valid = false;
-        try { valid = looksValid(edit.path, edit.content); }
-        catch { valid = false; }
-        if (!valid) {
-          throw Object.assign(new Error("Rejected an unusable copy of " + edit.path), { where: "edit" });
-        }
+      for (const [path, text] of plan.changed) {
+        const prior = originals.find((file) => file.path === path);
+        if (!prior || text.trim() === prior.text.trim()) continue;
         ready.push({
-          path: edit.path,
+          path,
           sha: prior.sha,
-          body: edit.content.endsWith("\n") ? edit.content : edit.content + "\n",
+          body: text.endsWith("\n") ? text : text + "\n",
         });
       }
       if (!ready.length) {
-        setStatus("The AI didn't change anything. Nothing was saved.");
+        const note = plan.skipped.join(" ") || "The AI didn't change anything. Nothing was saved.";
+        setStatus(note, String(reply.text || "").slice(0, 200), "bad");
         return;
       }
 
@@ -816,6 +994,10 @@ function install() {
         return;
       }
       showDone(saved, lastUrl);
+      if (plan.summary || plan.skipped.length) {
+        statusDetail.hidden = false;
+        statusDetail.textContent = [plan.summary, plan.skipped.join(" "), saved.join(", ")].filter(Boolean).join("\n");
+      }
     } catch (err) {
       showError(err);
     } finally {
@@ -827,4 +1009,4 @@ function install() {
   llmBase();
 }
 
-install();
+if (typeof document !== "undefined") install();

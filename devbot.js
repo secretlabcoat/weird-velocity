@@ -278,8 +278,12 @@ function install() {
   const style = document.createElement("style");
   style.textContent = `
     #devbot, #devbot * { box-sizing: border-box; }
-    #devbot { touch-action: pan-y; }
-    #devbot textarea, #devbot input { touch-action: manipulation; user-select: text; -webkit-user-select: text; }
+    #devbot, #devbot input, #devbot textarea {
+      -webkit-user-select: text;
+      user-select: text;
+      -webkit-touch-callout: default;
+      touch-action: manipulation;
+    }
     #devbot {
       position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
       display: flex; flex-direction: column;
@@ -295,7 +299,13 @@ function install() {
       color: #efe9dc; background: #12151f;
       border: 1px solid rgba(255,244,220,0.22); border-radius: 10px;
       padding: 8px; width: 100%;
+      -webkit-user-select: text;
+      user-select: text;
+      -webkit-touch-callout: default;
     }
+    #devbot .field-row { display: flex; gap: 6px; align-items: stretch; }
+    #devbot .field-row input { flex: 1; min-width: 0; width: auto; }
+    #devbot button.paste { flex: 0 0 auto; min-width: 72px; padding: 0 10px; }
     #dev-text { min-height: 52px; max-height: 120px; resize: vertical; }
     #devbot label { display: flex; flex-direction: column; gap: 2px; font-size: 13px; color: #b7b0a2; }
     #devbot .row { display: flex; gap: 6px; }
@@ -347,14 +357,20 @@ function install() {
           <input id="dev-base" type="url" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off">
         </label>
         <label>AI key
-          <input id="dev-key" type="text" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off">
+          <span class="field-row">
+            <input id="dev-key" type="text" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off">
+            <button type="button" class="paste" data-paste="dev-key">Paste</button>
+          </span>
         </label>
         <p id="dev-keywarn" hidden>Gemini keys usually start with AIza. If this is a Gemini key, double-check it.</p>
         <label>Model
           <input id="dev-model" type="text" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off">
         </label>
         <label>GitHub token
-          <input id="dev-gh" type="text" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off" placeholder="Fine-grained token, contents read and write">
+          <span class="field-row">
+            <input id="dev-gh" type="text" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off" placeholder="Fine-grained token, contents read and write">
+            <button type="button" class="paste" data-paste="dev-gh">Paste</button>
+          </span>
         </label>
         <div class="row">
           <button type="submit" id="dev-save" class="grow">Save</button>
@@ -432,6 +448,23 @@ function install() {
 
   keyInput.addEventListener("input", refreshKeyWarn);
   baseInput.addEventListener("input", refreshKeyWarn);
+
+  root.querySelectorAll("[data-paste]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const input = document.getElementById(button.dataset.paste);
+      try {
+        if (!navigator.clipboard || !navigator.clipboard.readText) {
+          throw new Error("This browser has no clipboard read.");
+        }
+        const text = await navigator.clipboard.readText();
+        input.value = text.trim();
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        input.focus();
+      } catch (err) {
+        setStatus("Couldn't paste. Allow paste when the phone asks, or long-press the box.", err && err.message ? err.message : String(err), "bad");
+      }
+    });
+  });
 
   let recognition = null;
   root.querySelector("#dev-mic").addEventListener("click", () => {

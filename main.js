@@ -23,18 +23,27 @@ function showBoot(err) {
   document.body.appendChild(pre);
 }
 
+function leaveTypingAlone(event) {
+  const target = event.target;
+  if (!target || !target.closest) return false;
+  if (target.closest("#devbot")) return true;
+  const tag = target.tagName;
+  return tag === "INPUT" || tag === "TEXTAREA" || tag === "BUTTON" || target.isContentEditable;
+}
+
 function preventPageGestures() {
-  document.addEventListener("touchmove", (e) => {
-    if (e.target.closest(".scroll, #devbot, textarea, input")) return;
-    e.preventDefault();
+  const cancelUnlessTyping = (event) => {
+    if (leaveTypingAlone(event)) return;
+    event.preventDefault();
+  };
+  document.addEventListener("touchmove", (event) => {
+    if (leaveTypingAlone(event) || event.target.closest?.(".scroll")) return;
+    event.preventDefault();
   }, { passive: false });
   for (const name of ["gesturestart", "gesturechange", "gestureend"]) {
-    document.addEventListener(name, (e) => e.preventDefault(), { passive: false });
+    document.addEventListener(name, cancelUnlessTyping, { passive: false });
   }
-  document.addEventListener("contextmenu", (e) => {
-    if (e.target.closest("#devbot")) return;
-    e.preventDefault();
-  });
+  document.addEventListener("contextmenu", cancelUnlessTyping);
 }
 
 function boot() {

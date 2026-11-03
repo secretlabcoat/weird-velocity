@@ -31,7 +31,8 @@ export function attachInput() {
   }
 
   window.addEventListener("keydown", (e) => {
-    if (typing()) return;
+    const target = e.target;
+    if (typing() || (target && target.closest && target.closest("#devbot, input, textarea, button"))) return;
     if (HELD.includes(e.code) || e.code === "KeyM" || e.code === "KeyE" || e.code === "Enter" || e.code === "Escape") {
       e.preventDefault();
     }

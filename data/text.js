@@ -208,7 +208,7 @@ const text = {
       blurb: "A peaceful trading hub with stable orbits and friendly stations.",
       specialty: "Cheap: starlight extract, berry jam. Safe for new pilots.",
       places: [
-        { id: "pickle", name: "Central Station", desc: "A well-maintained orbital station offering standard docking services and trade goods. Berth 4 is clear." },
+        { id: "pickle", name: "Central Station", desc: "A well-maintained orbital station offering standard docking services and trade goods." },
         { id: "wetmoon", name: "Terra Nova", desc: "A lush world with vast oceans and calm weather patterns." },
       ],
     },

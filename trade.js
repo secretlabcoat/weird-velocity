@@ -1,6 +1,7 @@
 // Buy, sell, refuel, repair. Prices vary by system and a saved wobble.
 
 import { GOODS, system } from "./data/galaxy.js";
+import copy from "./data/text.js";
 import { FUEL_PRICE, REPAIR_PRICE, hash } from "./util.js";
 
 export function buyPrice(game, systemId, goodId) {
@@ -27,7 +28,7 @@ export function buyGood(game, goodId, qty) {
   const afford = Math.floor(game.credits / unit);
   const n = Math.max(0, Math.min(qty, room, afford));
   if (n <= 0) {
-    return { ok: false, reason: room <= 0 ? "Hold is full." : "Not enough credits." };
+    return { ok: false, reason: room <= 0 ? copy.messages.holdFull : copy.messages.noCredits };
   }
   game.credits -= unit * n;
   game.cargo[goodId] = (game.cargo[goodId] || 0) + n;
@@ -38,7 +39,7 @@ export function buyGood(game, goodId, qty) {
 export function sellGood(game, goodId, qty) {
   const have = game.cargo[goodId] || 0;
   const n = Math.max(0, Math.min(qty, have));
-  if (n <= 0) return { ok: false, reason: "You don't have that." };
+  if (n <= 0) return { ok: false, reason: copy.messages.notOwned };
   const unit = sellPrice(game, game.systemId, goodId);
   game.cargo[goodId] = have - n;
   if (game.cargo[goodId] <= 0) delete game.cargo[goodId];
@@ -53,7 +54,7 @@ export function buyFuel(game, amount) {
   const afford = Math.floor(game.credits / FUEL_PRICE);
   const n = Math.max(0, Math.min(amount, room, afford));
   if (n <= 0) {
-    return { ok: false, reason: room <= 0 ? "Tank is already smug." : "Not enough credits." };
+    return { ok: false, reason: room <= 0 ? copy.messages.tankFull : copy.messages.noCredits };
   }
   game.credits -= n * FUEL_PRICE;
   game.fuel += n;
@@ -62,12 +63,12 @@ export function buyFuel(game, amount) {
 
 export function buyRepair(game, amount) {
   const p = game.player;
-  if (!p) return { ok: false, reason: "No ship." };
+  if (!p) return { ok: false, reason: copy.messages.noShip };
   const room = p.armorMax - p.armor;
   const afford = Math.floor(game.credits / REPAIR_PRICE);
   const n = Math.max(0, Math.min(amount, room, afford));
   if (n <= 0) {
-    return { ok: false, reason: room <= 0 ? "Armor is already smug." : "Not enough credits." };
+    return { ok: false, reason: room <= 0 ? copy.messages.armorFull : copy.messages.noCredits };
   }
   game.credits -= n * REPAIR_PRICE;
   p.armor += n;

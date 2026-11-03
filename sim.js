@@ -9,6 +9,7 @@ import { refreshBoards, onDock } from "./missions.js";
 import { burst, floater, pushParticle, updateFx } from "./fx.js";
 import { sfx, setMuted } from "./audio.js";
 import { persist } from "./save.js";
+import copy from "./data/text.js";
 
 function clampWorld(body) {
   const m = (body.radius || 20) + 16;
@@ -310,7 +311,7 @@ export function beginJump(game, toId) {
   const here = system(game.systemId);
   if (!here.links.includes(toId)) return;
   if (game.fuel < JUMP_FUEL) {
-    say(game, "Not enough fuel. Stations sell it by the sigh.");
+    say(game, copy.messages.lowFuel);
     sfx("no");
     return;
   }
@@ -345,13 +346,8 @@ function arrive(game, toId, fromId) {
   populate(game);
   game.jumpLock = 1.5;
   game.snap = true;
-  if (game.marketTrips % 3 === 0) {
-    game.salt += 1;
-    say(game, "The market clears its throat.");
-  }
+  if (game.marketTrips % 3 === 0) game.salt += 1;
   refreshBoards(game);
-  const sys = system(toId);
-  say(game, `${sys.name}. ${sys.blurb}`);
   updateNear(game);
 }
 
@@ -401,8 +397,6 @@ export function startNew(game) {
   game.player.invuln = 2.4;
   populate(game);
   refreshBoards(game);
-  say(game, "Stick or WASD flies. You keep drifting. Stop brakes. Space fires.");
-  say(game, "Land at Pickle Dock. Starlight is dear at the Museum.");
   game.snap = true;
   game.uiRev++;
   updateNear(game);
@@ -469,7 +463,6 @@ export function respawn(game) {
   populate(game);
   game.snap = true;
   game.uiRev++;
-  say(game, loss > 0 ? `Appeal granted. Filing fee ${loss} cr.` : "Appeal granted pro bono.");
   updateNear(game);
   persist(game);
 }

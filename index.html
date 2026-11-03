@@ -52,6 +52,12 @@
     </div>
     <div id="overlay"></div>
   </div>
+  <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("./sw.js", { scope: "./", updateViaCache: "none" })
+        .catch((err) => console.error(err));
+    }
+  </script>
   <script type="module">
     if (new URLSearchParams(location.search).get("dev") === "1") {
       import("./devbot.js").catch((err) => console.error(err));

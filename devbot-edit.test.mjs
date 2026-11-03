@@ -11,7 +11,7 @@ import {
 
 const request = "make the lasers red";
 const render = readFileSync(new URL("./render.js", import.meta.url), "utf8");
-const laserLine = 'ctx.strokeStyle = friendly ? "#d9fff8" : "#ffb4c8";';
+const laserLine = 'bolt.color || (friendly ? "#ff69b4" : "#ff5555")';
 
 const files = suggestFiles(request);
 assert.equal(files[0], "render.js", "laser requests should start at the file that draws them");
@@ -25,24 +25,24 @@ const mock = JSON.stringify({
   edits: [{
     path: "render.js",
     find: laserLine,
-    replace: 'ctx.strokeStyle = friendly ? "#ff3040" : "#ffb4c8";',
+    replace: 'bolt.color || (friendly ? "#ff3040" : "#ff5555")',
   }],
   summary: "Player lasers are red.",
 });
 const plan = applyEditPlan([{ path: "render.js", text: render }], "```json\n" + mock + "\n```");
 const next = plan.changed.get("render.js");
 assert.ok(next.includes('friendly ? "#ff3040"'));
-assert.equal(next.includes('friendly ? "#d9fff8"'), false);
+assert.equal(next.includes(laserLine), false);
 assert.equal(plan.summary, "Player lasers are red.");
 
 const loose = applyEditPlan([{ path: "render.js", text: render }], JSON.stringify({
   edits: [{
     path: "render.js",
-    find: 'ctx.strokeStyle   =   friendly ? "#d9fff8" : "#ffb4c8";',
-    replace: 'ctx.strokeStyle = friendly ? "#ff3040" : "#ffb4c8";',
+    find: 'bolt.color   ||   (friendly ? "#ff69b4" : "#ff5555")',
+    replace: 'bolt.color || (friendly ? "#ff3040" : "#ff5555")',
   }],
 }));
-assert.ok(loose.changed.get("render.js").includes('"#ff3040"'));
+assert.ok(loose.changed.get("render.js").includes('friendly ? "#ff3040"'));
 
 const missed = applyEditPlan([{ path: "render.js", text: render }], JSON.stringify({
   edits: [{ path: "render.js", find: "this line is not in the file", replace: "nope" }],

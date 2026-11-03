@@ -396,6 +396,8 @@ function explain(err) {
     plain = "The AI couldn't tell which file to change. Try saying it more simply.";
   } else if (where === "cutoff") {
     plain = "The AI's answer got cut off, try a smaller request";
+  } else if (where === "pages") {
+    plain = err && err.message ? err.message : "Publishing failed. Try again.";
   } else if (where === "edit") {
     plain = "The AI didn't return a usable file. Nothing was saved.";
   } else if (where === "github" || where === "save") {
@@ -972,7 +974,7 @@ function install() {
 
       setStatus("Saving to GitHub…");
       const saved = [];
-      let lastUrl = "";
+      let lastSha = "";
       for (const edit of ready) {
         const put = await ghJson(contentsUrl(edit.path), token, {
           method: "PUT",
@@ -985,24 +987,64 @@ function install() {
           }),
         });
         saved.push(edit.path);
-        lastUrl = put.commit?.html_url || (put.commit?.sha
-          ? `https://github.com/${REPO}/commit/${put.commit.sha}`
-          : lastUrl);
+        if (put.commit?.sha) lastSha = put.commit.sha;
+      }
+      if (!lastSha) {
+        setStatus("Saved, but the commit id was missing. Reload in a minute.", "", "bad");
+        return;
       }
       if (!saved.length) {
         setStatus("The AI didn't change anything. Nothing was saved.");
         return;
       }
-      showDone(saved, lastUrl);
-      if (plan.summary || plan.skipped.length) {
-        statusDetail.hidden = false;
-        statusDetail.textContent = [plan.summary, plan.skipped.join(" "), saved.join(", ")].filter(Boolean).join("\n");
-      }
+      const published = await publishPages(token, lastSha);
+      if (published === "errored") return;
+      showLive(plan, saved);
     } catch (err) {
       showError(err);
     } finally {
       go.disabled = false;
     }
+  }
+
+  async function publishPages(token, sha) {
+    setStatus("Saved ✓ — publishing…", sha.slice(0, 7));
+    const deadline = Date.now() + 4 * 60 * 1000;
+    while (Date.now() < deadline) {
+      let build;
+      try {
+        build = await ghJson(`https://api.github.com/repos/${REPO}/pages/builds/latest`, token);
+      } catch (err) {
+        err.where = "pages";
+        err.message = "Saved, but publishing could not be checked. Try again in a minute.";
+        throw err;
+      }
+      const commit = String(build.commit || "");
+      const matches = commit && (commit.startsWith(sha) || sha.startsWith(commit));
+      if (matches && build.status === "built") return "built";
+      if (matches && build.status === "errored") {
+        const why = build.error && build.error.message ? build.error.message : "GitHub Pages reported an error.";
+        setStatus("Publishing failed. Try again.", why, "bad");
+        return "errored";
+      }
+      await sleep(4000);
+    }
+    const err = new Error("Publishing is taking too long. Try again in a minute.");
+    err.where = "pages";
+    throw err;
+  }
+
+  function showLive(plan, saved) {
+    statusMain.className = "ok";
+    statusMain.textContent = "Live now! ";
+    const button = document.createElement("button");
+    button.type = "button";
+    button.id = "dev-reload";
+    button.textContent = "Tap to see it";
+    button.addEventListener("click", () => location.reload());
+    statusMain.appendChild(button);
+    statusDetail.hidden = false;
+    statusDetail.textContent = [plan.summary, plan.skipped.join(" "), saved.join(", ")].filter(Boolean).join("\n");
   }
 
   llmModel();

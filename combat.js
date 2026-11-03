@@ -38,7 +38,7 @@ export function tryFire(game, owner, friendly) {
     dmg: friendly ? 22 : (owner.solo ? 11 : 8),
     friendly,
     r: 3.5,
-    color: friendly ? "#ff3333" : "#ff5555"
+    color: friendly ? "#ff69b4" : "#ff5555"
   });
   return true;
 }

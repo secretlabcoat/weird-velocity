@@ -22,7 +22,6 @@ html, body {
   position: fixed;
   inset: 0;
   width: 100%;
-  touch-action: none;
   overscroll-behavior: none;
   user-select: none;
   -webkit-user-select: none;
@@ -30,7 +29,21 @@ html, body {
   font-family: var(--sans);
 }
 
-#app { position: fixed; inset: 0; }
+/* The game locks selection so the page does not scroll. The dev panel must opt back in or iOS will not paste. */
+#devbot,
+#devbot input,
+#devbot textarea {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+  touch-action: manipulation;
+}
+#devbot input,
+#devbot textarea {
+  font-size: 16px;
+}
+
+#app { position: fixed; inset: 0; touch-action: none; }
 
 #view {
   position: absolute;

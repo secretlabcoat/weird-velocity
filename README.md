@@ -32,6 +32,6 @@ The chart is not a teleporter. Beacons are.
 
 Open the game with `?dev=1`. A panel at the bottom can edit one source file: it sends the file and your instruction to an OpenAI-compatible `/chat/completions` endpoint, then commits the returned file to `secretlabcoat/weird-velocity` on `main` with the GitHub contents API.
 
-The gear button stores the LLM base URL, API key, model, and a GitHub fine-grained token in this browser's `localStorage` only. If those boxes are empty they start as Gemini (`https://generativelanguage.googleapis.com/v1beta/openai`, `gemini-2.5-flash`). Test my keys checks the AI and that the token can write. The bot picks which files to change. The LLM endpoint must allow browser requests, or the panel shows the error.
+The gear button stores the LLM base URL, API key, model, and a GitHub fine-grained token in this browser's `localStorage` only. If those boxes are empty they start as Gemini (`https://generativelanguage.googleapis.com/v1beta/openai`, `gemini-flash-latest`). Test my keys checks the AI and that the token can write. The bot picks which files to change. The LLM endpoint must allow browser requests, or the panel shows the error.
 
 `NOTES.md` is the source of truth for layout and what to build next.

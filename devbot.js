@@ -3,7 +3,10 @@
 
 const REPO = "secretlabcoat/weird-velocity";
 const DEFAULT_BASE = "https://generativelanguage.googleapis.com/v1beta/openai";
-const DEFAULT_MODEL = "gemini-2.5-flash";
+const DEFAULT_MODEL = "gemini-flash-latest";
+const FALLBACK_MODEL = "gemini-flash-lite-latest";
+const RETIRED_MODELS = new Set(["gemini-2.5-flash"]);
+const BUSY_WAITS = [2000, 5000, 10000];
 const MAX_FILES = 3;
 
 const FILE_GUIDE = [
@@ -49,9 +52,20 @@ function store(key, value) {
 function llmBase() {
   return (load(LS.base) || DEFAULT_BASE).trim();
 }
-function llmModel() {
-  return (load(LS.model) || DEFAULT_MODEL).trim();
+function normalizeModel(value) {
+  const model = (value || "").trim() || DEFAULT_MODEL;
+  return RETIRED_MODELS.has(model) ? DEFAULT_MODEL : model;
 }
+function llmModel() {
+  const saved = load(LS.model);
+  const model = normalizeModel(saved);
+  if (saved !== model) store(LS.model, model);
+  return model;
+}
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+let reportStatus = () => {};
 
 function chatUrl(base) {
   const trimmed = base.trim().replace(/\/+$/, "");
@@ -176,45 +190,54 @@ function parseEdits(text, expected) {
   return expected.filter((path) => found.has(path)).map((path) => ({ path, content: found.get(path) }));
 }
 
+function detailLine(err) {
+  const parts = [];
+  if (err && err.status) parts.push("HTTP " + err.status);
+  if (err && err.message) parts.push(err.message);
+  if (err && err.body && !String(err.message || "").includes(String(err.body).slice(0, 80))) {
+    parts.push(err.body);
+  }
+  const line = parts.join(" — ").trim();
+  return (line || String(err || "Unknown error")).slice(0, 700);
+}
+
 function explain(err) {
-  const raw = (err && (err.body || err.message)) ? String(err.body || err.message) : String(err);
+  const raw = detailLine(err);
   const status = err && err.status;
   const where = err && err.where;
   const low = raw.toLowerCase();
   const gemini = /generativelanguage|googleapis/.test(llmBase());
   let plain = "Something went wrong. Try again.";
+  const modelMissing = status === 404 || /no longer available|model.*(not found|unsupported|does not exist)|unknown model|invalid model|not supported/.test(low);
   if (where === "pick") {
     plain = "The AI couldn't tell which file to change. Try saying it more simply.";
   } else if (where === "edit") {
     plain = "The AI didn't return a usable file. Nothing was saved.";
-  } else if (where === "llm" || !where) {
-    if (status === 401 || status === 403 || /api key|unauthor|permission denied|invalid.*(key|credential)/.test(low)) {
-      plain = gemini ? "Your Gemini key was rejected." : "Your AI key was rejected.";
-    } else if (status === 404 || /model.*(not found|unsupported|does not exist)|unknown model|invalid model|not supported/.test(low)) {
-      plain = "That model name looks wrong. Try gemini-2.5-flash.";
-    } else if (status === 429 || status === 500 || status === 503 || /overload|unavailable|rate limit|resource exhausted|try again/.test(low)) {
-      plain = "AI service is busy, try again in a minute.";
-    } else if (/failed to fetch|networkerror|load failed|network request failed/.test(low)) {
-      plain = "Couldn't reach the AI service. Check the address and your connection.";
-    } else if (where === "llm") {
-      plain = "The AI service didn't answer.";
-    }
-  }
-  if (where === "github" || where === "save") {
+  } else if (where === "github" || where === "save") {
     if (status === 401 || status === 403 || /bad credentials|resource not accessible|must have push access/.test(low)) {
       plain = "GitHub token can't write to this repo.";
     } else if (status === 409) {
       plain = "Someone else saved first. Try again.";
-    } else if (/failed to fetch|networkerror|load failed/.test(low)) {
+    } else if (!status && /failed to fetch|networkerror|load failed|network request failed/.test(low)) {
       plain = "Couldn't reach GitHub.";
     } else {
       plain = "GitHub didn't save the change.";
     }
+  } else if (status === 401 || status === 403 || /api key|unauthor|permission denied|invalid.*(key|credential)/.test(low)) {
+    plain = gemini ? "Your Gemini key was rejected." : "Your AI key was rejected.";
+  } else if (modelMissing) {
+    plain = "That model name looks wrong. Try gemini-flash-latest.";
+  } else if (status === 429 || status === 500 || status === 503 || /overload|unavailable|high demand|rate limit|resource exhausted/.test(low)) {
+    plain = "AI service is busy, try again in a minute.";
+  } else if (!status && /failed to fetch|networkerror|load failed|network request failed/.test(low)) {
+    plain = "Couldn't reach the AI service. Check the address and your connection.";
+  } else if (where === "llm" || !where) {
+    plain = "The AI service didn't answer.";
   }
-  return { plain, raw: raw.slice(0, 500) };
+  return { plain, raw };
 }
 
-async function fetchChat(messages, maxTokens) {
+async function chatOnce(messages, maxTokens, model) {
   let response;
   try {
     response = await fetch(chatUrl(llmBase()), {
@@ -224,7 +247,7 @@ async function fetchChat(messages, maxTokens) {
         Authorization: "Bearer " + load(LS.key).trim(),
       },
       body: JSON.stringify({
-        model: llmModel(),
+        model,
         temperature: 0.2,
         stream: false,
         ...(maxTokens ? { max_tokens: maxTokens } : {}),
@@ -232,11 +255,11 @@ async function fetchChat(messages, maxTokens) {
       }),
     });
   } catch (err) {
-    throw Object.assign(new Error(err.message || "Failed to fetch"), { where: "llm" });
+    throw Object.assign(new Error(err && err.message ? err.message : "Failed to fetch"), { where: "llm" });
   }
   const raw = await response.text();
   if (!response.ok) {
-    throw Object.assign(new Error("LLM " + response.status), {
+    throw Object.assign(new Error("LLM " + response.status + " " + raw.slice(0, 300)), {
       where: "llm",
       status: response.status,
       body: raw.slice(0, 500),
@@ -245,9 +268,40 @@ async function fetchChat(messages, maxTokens) {
   let data;
   try { data = JSON.parse(raw); }
   catch {
-    throw Object.assign(new Error("AI returned non-JSON."), { where: "llm", body: raw.slice(0, 300) });
+    throw Object.assign(new Error("AI returned non-JSON. " + raw.slice(0, 200)), {
+      where: "llm",
+      body: raw.slice(0, 300),
+    });
   }
   return messageText(data);
+}
+
+function busy(err) {
+  return !!(err && (err.status === 503 || err.status === 429));
+}
+
+async function fetchChat(messages, maxTokens) {
+  const primary = llmModel();
+  let lastErr;
+  for (let attempt = 0; attempt <= BUSY_WAITS.length; attempt++) {
+    try {
+      return await chatOnce(messages, maxTokens, primary);
+    } catch (err) {
+      lastErr = err;
+      if (!busy(err) || attempt === BUSY_WAITS.length) break;
+      reportStatus("AI is busy, retrying…", detailLine(err));
+      await sleep(BUSY_WAITS[attempt]);
+    }
+  }
+  if (busy(lastErr) && primary !== FALLBACK_MODEL) {
+    reportStatus("AI is busy, retrying…", detailLine(lastErr));
+    try {
+      return await chatOnce(messages, maxTokens, FALLBACK_MODEL);
+    } catch (err) {
+      throw err;
+    }
+  }
+  throw lastErr;
 }
 
 async function ghJson(url, token, options = {}) {
@@ -338,7 +392,6 @@ function install() {
     #dev-status-main.bad { color: #ffb4a8; }
     #dev-status-main a { color: #ffb15a; }
     #dev-status-detail { margin: 4px 0 0; font-size: 13px; line-height: 1.35; color: #b7b0a2; word-break: break-word; }
-    #dev-keywarn { margin: 0; color: #ffb15a; font-size: 14px; }
     #dev-keytest { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
     #dev-keytest li { font-size: 15px; line-height: 1.35; }
     #dev-keytest .ok { color: #b6f2a2; }
@@ -368,7 +421,6 @@ function install() {
         <label>AI key
           <input id="dev-key" type="text" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off">
         </label>
-        <p id="dev-keywarn" hidden>Gemini keys usually start with AIza. If this is a Gemini key, double-check it.</p>
         <label>Model
           <input id="dev-model" type="text" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off">
         </label>
@@ -398,7 +450,8 @@ function install() {
   const testBtn = root.querySelector("#dev-test");
   const keyInput = root.querySelector("#dev-key");
   const baseInput = root.querySelector("#dev-base");
-  const warn = root.querySelector("#dev-keywarn");
+  const modelInput = root.querySelector("#dev-model");
+  reportStatus = (text, detail) => setStatus(text, detail || "");
 
   function setStatus(main, detail, kind) {
     statusMain.className = kind || "";
@@ -423,23 +476,15 @@ function install() {
   }
 
   function showError(err) {
-    const { plain, raw } = explain(err);
-    setStatus(plain, raw, "bad");
+    const { plain } = explain(err);
+    setStatus(plain, detailLine(err), "bad");
   }
 
   function fillSettings() {
     baseInput.value = load(LS.base) || DEFAULT_BASE;
     keyInput.value = load(LS.key);
-    root.querySelector("#dev-model").value = load(LS.model) || DEFAULT_MODEL;
+    modelInput.value = llmModel();
     root.querySelector("#dev-gh").value = load(LS.gh);
-    refreshKeyWarn();
-  }
-
-  function refreshKeyWarn() {
-    const key = keyInput.value.trim();
-    const base = baseInput.value.trim();
-    const gemini = !base || /generativelanguage|googleapis/.test(base);
-    warn.hidden = !(key && gemini && !key.startsWith("AIza"));
   }
 
   function placePinned() {
@@ -471,9 +516,6 @@ function install() {
     const typing = root.contains(document.activeElement) && document.activeElement.matches("input, textarea");
     pinDevbot(open || typing);
   }
-
-  keyInput.addEventListener("input", refreshKeyWarn);
-  baseInput.addEventListener("input", refreshKeyWarn);
 
   root.addEventListener("focusin", (event) => {
     const field = event.target;
@@ -525,7 +567,8 @@ function install() {
     event.preventDefault();
     store(LS.base, baseInput.value.trim() || DEFAULT_BASE);
     store(LS.key, keyInput.value.trim());
-    store(LS.model, root.querySelector("#dev-model").value.trim() || DEFAULT_MODEL);
+    store(LS.model, normalizeModel(modelInput.value));
+    modelInput.value = llmModel();
     store(LS.gh, root.querySelector("#dev-gh").value.trim());
     fillSettings();
     setStatus("Saved on this phone. Checking the keys…");
@@ -555,11 +598,13 @@ function install() {
       const key = (settings.hidden ? load(LS.key) : keyInput.value).trim();
       const token = (settings.hidden ? load(LS.gh) : root.querySelector("#dev-gh").value).trim();
       const base = (settings.hidden ? llmBase() : baseInput.value.trim() || DEFAULT_BASE);
-      const model = (settings.hidden ? llmModel() : root.querySelector("#dev-model").value.trim() || DEFAULT_MODEL);
+      const model = normalizeModel(settings.hidden ? llmModel() : modelInput.value);
+      let aiDetail = "";
       if (!settings.hidden) {
         store(LS.base, base);
         store(LS.key, key);
         store(LS.model, model);
+        modelInput.value = llmModel();
         store(LS.gh, token);
       }
       if (!key) add(false, "AI key is empty.");
@@ -572,9 +617,11 @@ function install() {
           else add(false, "AI key reached the service, but the reply was not ok. The model name might be wrong.");
         } catch (err) {
           const { plain } = explain(err);
+          aiDetail = detailLine(err);
           add(false, "AI: " + plain);
         }
       }
+      let ghDetail = "";
       if (!token) add(false, "GitHub token is empty.");
       else {
         try {
@@ -588,12 +635,17 @@ function install() {
           }
         } catch (err) {
           const { plain } = explain(err);
+          ghDetail = detailLine(err);
           add(false, "GitHub: " + plain);
         }
       }
       const bits = [...list.querySelectorAll("li")].map((li) => li.textContent);
       const bad = list.querySelector(".bad");
-      setStatus(bad ? "Key check finished with a problem." : "Key check passed.", bits.join(" "), bad ? "bad" : "ok");
+      setStatus(
+        bad ? "Key check finished with a problem." : "Key check passed.",
+        [bits.join(" "), aiDetail, ghDetail].filter(Boolean).join("\n"),
+        bad ? "bad" : "ok",
+      );
     } finally {
       testBtn.disabled = false;
       go.disabled = false;
@@ -700,6 +752,8 @@ function install() {
       go.disabled = false;
     }
   }
+
+  llmModel();
 }
 
 install();

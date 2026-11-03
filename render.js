@@ -152,7 +152,7 @@ function drawShip(ctx, x, y, angle, opts) {
 
 function drawBolts(ctx, bolts, cam, friendly) {
   ctx.beginPath();
-  ctx.strokeStyle = friendly ? "#ff3333" : "#ff5555";
+  ctx.strokeStyle = friendly ? "#ff69b4" : "#ff5555";
   ctx.lineWidth = 2;
   ctx.lineCap = "round";
   let any = false;

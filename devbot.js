@@ -16,7 +16,8 @@ const FILE_GUIDE = [
   ["state.js", "The live voyage and the short on-screen log."],
   ["util.js", "Shared math and numbers like fuel cost and cargo space."],
   ["physics.js", "Thrust, turn, brake, and how the thumb stick steers."],
-  ["data/galaxy.js", "Systems, planets, commodities, names, and descriptions."],
+  ["data/text.js", "All player-facing writing: title, HUD, systems, planets, goods, missions, factions, and messages. Edit this file to change what the game says. TEXT.md is only a readable copy."],
+  ["data/galaxy.js", "System layout: ids, coordinates, links, and prices. Names and descriptions are in data/text.js."],
   ["trade.js", "Buy, sell, refuel, and repair prices."],
   ["missions.js", "Bounties, deliveries, and errands."],
   ["combat.js", "Shots, shields, armor, and pirate deaths."],
@@ -197,16 +198,21 @@ function parsePick(text) {
 
 const HINTS = [
   {
+    test: /text|wording|rename|blurb|dialogue|dialog|joke|caption|subtitle|description|title screen|\bhud\b|message|contract line/i,
+    files: ["data/text.js"],
+    words: ["name", "blurb", "desc", "title"],
+  },
+  {
     test: /laser|bolt|colour|color|visual|glow|draw/i,
     files: ["render.js", "fx.js", "combat.js", "style.css"],
     words: ["laser", "bolt", "strokeStyle"],
   },
   { test: /price|cargo|trade|buy|sell|fuel/i, files: ["trade.js", "data/galaxy.js"], words: ["price", "cargo"] },
-  { test: /mission|bounty|errand|quest/i, files: ["missions.js", "ui.js"], words: ["mission", "bounty"] },
+  { test: /mission|bounty|errand|quest|contract/i, files: ["data/text.js", "missions.js", "ui.js"], words: ["bounty", "delivery", "errand"] },
   { test: /pirate|damage|shield|armor|weapon/i, files: ["combat.js", "sim.js"], words: ["shield", "armor"] },
   { test: /thrust|turn|brake|stick|physic/i, files: ["physics.js", "input.js"], words: ["thrust", "brake"] },
   { test: /button|layout|font|safe area/i, files: ["style.css", "ui.js"], words: ["button"] },
-  { test: /planet|system|commodit|galaxy/i, files: ["data/galaxy.js"], words: ["planet"] },
+  { test: /planet|system|commodit|galaxy|dock|station/i, files: ["data/text.js", "data/galaxy.js"], words: ["name", "blurb", "desc"] },
 ];
 
 const STOP_WORDS = new Set(["the", "and", "for", "make", "with", "that", "this", "from", "into", "please", "them", "your"]);
@@ -918,7 +924,7 @@ function install() {
         const picked = await fetchChat([
           {
             role: "system",
-            content: "You choose source files for a tiny plain-ES-module game with no build step. Reply with JSON only: {\"files\":[\"path\"]}. Pick 1 to 3 paths from the list. Do not invent paths. Hints: lasers, colors, and visuals -> render.js, fx.js, combat.js, style.css. Prices -> trade.js. Missions -> missions.js.",
+            content: "You choose source files for a tiny plain-ES-module game with no build step. Reply with JSON only: {\"files\":[\"path\"]}. Pick 1 to 3 paths from the list. Do not invent paths. Hints: player-facing words, names, descriptions, and HUD text -> data/text.js. Do not edit TEXT.md; it is only a readable copy. Lasers, colors, and visuals -> render.js, fx.js, combat.js, style.css. Prices -> trade.js and data/galaxy.js. Missions -> data/text.js.",
           },
           {
             role: "user",

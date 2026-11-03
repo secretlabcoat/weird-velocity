@@ -1,36 +1,22 @@
-// Star systems, commodities, and the chart. Original names only.
+// Star systems, commodities, and the chart. Names and descriptions live in text.js.
 
 import { WORLD, hash } from "../util.js";
+import copy from "./text.js";
 
 export const GOODS = [
-  { id: "starlight", name: "Starlight Extract", base: 90 },
-  { id: "regret", name: "Berry Jam", base: 130 },
-  { id: "gravity", name: "Gravity Stabilizers", base: 240 },
-  { id: "threats", name: "Security Protocols", base: 160 },
-  { id: "honey", name: "Synth Honey", base: 100 },
-  { id: "echoes", name: "Data Echoes", base: 110 },
-  { id: "moss", name: "Agricultural Moss", base: 70 },
-  { id: "numbers", name: "Telemetry Data", base: 180 },
+  { id: "starlight", base: 90 },
+  { id: "regret", base: 130 },
+  { id: "gravity", base: 240 },
+  { id: "threats", base: 160 },
+  { id: "honey", base: 100 },
+  { id: "echoes", base: 110 },
+  { id: "moss", base: 70 },
+  { id: "numbers", base: 180 },
 ];
 
-export const PIRATE_NAMES = [
-  "Corsair Alpha", "Raider One", "Vanguard", "Shadow Stalker",
-  "Iron Wing", "Crimson Fleet", "Void Runner", "Dark Star",
-  "Strikeforce", "Black Osprey", "Phantom", "Apex",
-];
-
-export const SOLO_NAMES = ["The Footnote", "Captain Meanwhile", "Soloist Annoyed"];
-
-export const BARKS = [
-  "PREPARE TO BE BOARDED",
-  "SURRENDER YOUR CARGO",
-  "YOU CANNOT ESCAPE",
-  "TARGET ACQUIRED",
-  "OPEN FIRE",
-  "PREPARE FOR COMBAT",
-  "ALL YOUR ORE ARE BELONG",
-  "HOLD YOUR POSITION",
-];
+export const PIRATE_NAMES = copy.factions.pirateNames;
+export const SOLO_NAMES = copy.factions.soloNames;
+export const BARKS = copy.factions.barks;
 
 const PRICE = {
   brine:    { starlight: 0.55, regret: 0.68, gravity: 1.35, threats: 1.25, honey: 1.15, echoes: 1.30, moss: 1.15, numbers: 1.60 },
@@ -45,20 +31,14 @@ const PRICE = {
 export const SYSTEMS = [
   {
     id: "brine",
-    name: "Alpha Prime",
-    short: "Alpha",
     mapX: 28, mapY: 70,
-    blurb: "A peaceful trading hub with stable orbits and friendly stations.",
-    specialty: "Cheap: starlight extract, berry jam. Safe for new pilots.",
     accent: "#3ec6b8",
     nebula: ["rgba(30,150,140,0.55)", "rgba(14,70,110,0.5)", "rgba(210,140,60,0.35)"],
     links: ["orchard", "courtesy"],
     prices: PRICE.brine,
     bodies: [
-      { id: "pickle", kind: "station", name: "Central Station", x: 2000, y: 1980, r: 42, look: "station",
-        desc: "A well-maintained orbital station offering standard docking services and trade goods." },
-      { id: "wetmoon", kind: "planet", name: "Terra Nova", x: 1040, y: 1380, r: 84, look: "banded", ring: true,
-        desc: "A lush world with vast oceans and calm weather patterns." },
+      { id: "pickle", kind: "station", x: 2000, y: 1980, r: 42, look: "station" },
+      { id: "wetmoon", kind: "planet", x: 1040, y: 1380, r: 84, look: "banded", ring: true },
     ],
     beacons: [
       { to: "orchard", x: 3280, y: 760 },
@@ -67,20 +47,14 @@ export const SYSTEMS = [
   },
   {
     id: "orchard",
-    name: "Static Orchard",
-    short: "Orchard",
     mapX: 72, mapY: 52,
-    blurb: "Trees rooted in old parking orbits. Fruit ripens when ignored.",
-    specialty: "Cheap: clock honey, spare echoes. Hungry for pickled starlight.",
     accent: "#8fce6a",
     nebula: ["rgba(90,160,60,0.5)", "rgba(40,80,30,0.45)", "rgba(190,160,80,0.35)"],
     links: ["brine", "census", "hum"],
     prices: PRICE.orchard,
     bodies: [
-      { id: "trellis", kind: "station", name: "The Trellis", x: 2000, y: 2000, r: 42, look: "station",
-        desc: "A wooden lattice parked in orbit, knotted with vines that eat rumors. Do not lick the rails." },
-      { id: "bark", kind: "planet", name: "Bark Without Weather", x: 2860, y: 2700, r: 96, look: "grove",
-        desc: "A forest wrapped around a lost climate. Fruit ripens when ignored, which is why the honey is always early." },
+      { id: "trellis", kind: "station", x: 2000, y: 2000, r: 42, look: "station" },
+      { id: "bark", kind: "planet", x: 2860, y: 2700, r: 96, look: "grove" },
     ],
     beacons: [
       { to: "brine", x: 720, y: 3180 },
@@ -90,20 +64,14 @@ export const SYSTEMS = [
   },
   {
     id: "courtesy",
-    name: "Courtesy Void",
-    short: "Courtesy",
     mapX: 18, mapY: 44,
-    blurb: "Local law says you wave at explosions.",
-    specialty: "Cheap: polite threats, bureaucratic moss.",
     accent: "#cbb6ff",
     nebula: ["rgba(170,150,230,0.5)", "rgba(90,70,160,0.4)", "rgba(240,210,230,0.35)"],
     links: ["brine", "museum", "parcel"],
     prices: PRICE.courtesy,
     bodies: [
-      { id: "remain", kind: "station", name: "Please Remain", x: 1960, y: 2080, r: 42, look: "station",
-        desc: "Take a number, a seat, and a breath. The breath is returned later, warmer, with a receipt." },
-      { id: "thankyou", kind: "planet", name: "Thank You", x: 2780, y: 1280, r: 108, look: "bow", ring: true,
-        desc: "A gas giant that bows when scanned. Storms end in signed notes. Mining without a card is considered loud." },
+      { id: "remain", kind: "station", x: 1960, y: 2080, r: 42, look: "station" },
+      { id: "thankyou", kind: "planet", x: 2780, y: 1280, r: 108, look: "bow", ring: true },
     ],
     beacons: [
       { to: "brine", x: 3240, y: 3240 },
@@ -113,20 +81,14 @@ export const SYSTEMS = [
   },
   {
     id: "museum",
-    name: "Museum of Unfinished Storms",
-    short: "Museum",
     mapX: 24, mapY: 16,
-    blurb: "Weather that left before the ending. Labels outnumber stars.",
-    specialty: "Cheap: unlicensed gravity. Pays dearly for pickled starlight.",
     accent: "#f0a0b8",
     nebula: ["rgba(200,100,130,0.45)", "rgba(80,40,60,0.5)", "rgba(210,180,140,0.3)"],
     links: ["courtesy", "hum"],
     prices: PRICE.museum,
     bodies: [
-      { id: "gallery", kind: "station", name: "Gallery of Almost", x: 1980, y: 1900, r: 44, look: "station",
-        desc: "Every airlock is labeled Door, Interrupted. The shop sells gravity with the tags still on." },
-      { id: "exhibit", kind: "planet", name: "Exhibit Four", x: 1160, y: 2580, r: 78, look: "plaque",
-        desc: "A planet kept under glass, including the glass. The plaque says it used to rain, then the rain got stage fright." },
+      { id: "gallery", kind: "station", x: 1980, y: 1900, r: 44, look: "station" },
+      { id: "exhibit", kind: "planet", x: 1160, y: 2580, r: 78, look: "plaque" },
     ],
     beacons: [
       { to: "courtesy", x: 680, y: 3280 },
@@ -135,20 +97,14 @@ export const SYSTEMS = [
   },
   {
     id: "census",
-    name: "Glass Census",
-    short: "Census",
     mapX: 84, mapY: 18,
-    blurb: "Every pebble has paperwork. Most of it complies.",
-    specialty: "Cheap: warm numbers, bureaucratic moss. Pays for regret jam.",
     accent: "#9fd4ff",
     nebula: ["rgba(120,190,240,0.45)", "rgba(40,70,110,0.5)", "rgba(230,236,245,0.28)"],
     links: ["orchard", "parcel"],
     prices: PRICE.census,
     bodies: [
-      { id: "counting", kind: "station", name: "Counting House", x: 2060, y: 2000, r: 42, look: "station",
-        desc: "Shaped like a column of figures. Speak clearly. The decimals are sensitive and unionized." },
-      { id: "population", kind: "planet", name: "Population: Yes", x: 2700, y: 1180, r: 80, look: "census",
-        desc: "Landing adds you to the census, and so does thinking about landing. Bring warm numbers or a spare pen." },
+      { id: "counting", kind: "station", x: 2060, y: 2000, r: 42, look: "station" },
+      { id: "population", kind: "planet", x: 2700, y: 1180, r: 80, look: "census" },
     ],
     beacons: [
       { to: "orchard", x: 700, y: 3120 },
@@ -157,20 +113,14 @@ export const SYSTEMS = [
   },
   {
     id: "hum",
-    name: "Low Hum",
-    short: "Low Hum",
     mapX: 50, mapY: 28,
-    blurb: "A held note. Ships arrive slightly sharp.",
-    specialty: "Cheap: unlicensed gravity, regret jam. Pays for polite threats.",
     accent: "#f0b45a",
     nebula: ["rgba(210,150,70,0.48)", "rgba(90,50,16,0.5)", "rgba(240,220,170,0.28)"],
     links: ["orchard", "museum", "parcel"],
     prices: PRICE.hum,
     bodies: [
-      { id: "ear", kind: "station", name: "The Ear", x: 2000, y: 2140, r: 42, look: "station",
-        desc: "It hears your engine early and hums the last note back, half a cent sharp, like a question at a door." },
-      { id: "note", kind: "planet", name: "A Note Held Too Long", x: 1280, y: 1240, r: 90, look: "note",
-        desc: "The world is one tone. Cities are rests. Stay long enough and your fillings join the choir." },
+      { id: "ear", kind: "station", x: 2000, y: 2140, r: 42, look: "station" },
+      { id: "note", kind: "planet", x: 1280, y: 1240, r: 90, look: "note" },
     ],
     beacons: [
       { to: "orchard", x: 3280, y: 3120 },
@@ -180,20 +130,14 @@ export const SYSTEMS = [
   },
   {
     id: "parcel",
-    name: "Parcel Orbit",
-    short: "Parcel",
     mapX: 52, mapY: 78,
-    blurb: "Mail circled long enough to become geography.",
-    specialty: "A careful middle. Slightly cheap echoes, moss, and threats.",
     accent: "#e7c8a0",
     nebula: ["rgba(190,160,120,0.42)", "rgba(110,70,40,0.45)", "rgba(80,170,160,0.3)"],
     links: ["courtesy", "census", "hum"],
     prices: PRICE.parcel,
     bodies: [
-      { id: "lostmail", kind: "station", name: "Lost & Misdelivered", x: 1960, y: 2040, r: 42, look: "station",
-        desc: "Parcels orbit the counter until claimed, denied, or evolved. One of them draws a pension." },
-      { id: "envelope", kind: "planet", name: "The Envelope", x: 3140, y: 1700, r: 72, look: "envelope",
-        desc: "A flat world with a flap. Inside is a smaller weather system and a letter nobody will read aloud." },
+      { id: "lostmail", kind: "station", x: 1960, y: 2040, r: 42, look: "station" },
+      { id: "envelope", kind: "planet", x: 3140, y: 1700, r: 72, look: "envelope" },
     ],
     beacons: [
       { to: "courtesy", x: 620, y: 1960 },
@@ -202,6 +146,33 @@ export const SYSTEMS = [
     ],
   },
 ];
+
+function applyWriting() {
+  const bySys = Object.fromEntries(copy.systems.map((s) => [s.id, s]));
+  for (const sys of SYSTEMS) {
+    const written = bySys[sys.id];
+    if (!written) throw new Error("Missing system text " + sys.id);
+    sys.name = written.name;
+    sys.short = written.short;
+    sys.blurb = written.blurb;
+    sys.specialty = written.specialty;
+    const places = Object.fromEntries(written.places.map((p) => [p.id, p]));
+    for (const body of sys.bodies) {
+      const place = places[body.id];
+      if (!place) throw new Error("Missing place text " + body.id);
+      body.name = place.name;
+      body.desc = place.desc;
+    }
+  }
+  for (const good of GOODS) {
+    const written = copy.goods.find((item) => item.id === good.id);
+    if (!written) throw new Error("Missing good text " + good.id);
+    good.name = written.name;
+    good.about = written.about;
+  }
+}
+
+applyWriting();
 
 const byId = Object.fromEntries(SYSTEMS.map((s) => [s.id, s]));
 

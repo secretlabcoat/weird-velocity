@@ -3,6 +3,7 @@
 
 import { WORLD, reduceMotion, rng, hash } from "./util.js";
 import { system } from "./data/galaxy.js";
+import copy, { fill } from "./data/text.js";
 import { compassTarget } from "./missions.js";
 import { getAtlas, bodySprite, rockSprite, nebulaSprite } from "./sprites.js";
 
@@ -311,7 +312,7 @@ export function draw(game, ctx, dt) {
     ctx.closePath();
     ctx.stroke();
     ctx.restore();
-    drawLabel(ctx, "Jump " + beacon.name, x, y + 32);
+    drawLabel(ctx, fill(copy.hud.jumpMark, { name: beacon.name }), x, y + 32);
   }
 
   for (const rock of game.rocks) {

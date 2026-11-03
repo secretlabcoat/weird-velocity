@@ -1,6 +1,7 @@
 // DOM screens: title, dock, chart, death. The space view stays on the canvas.
 
 import { GOODS, SYSTEMS, system, route } from "./data/galaxy.js";
+import copy, { fill } from "./data/text.js";
 import { buyPrice, sellPrice, cargoUsed, buyGood, sellGood, buyFuel, buyRepair } from "./trade.js";
 import { acceptMission, abandonMission, missionBlurb } from "./missions.js";
 import { startNew, restore, launch, respawn, openMap, closeMap } from "./sim.js";
@@ -16,39 +17,65 @@ function rememberScroll(game) {
   if (scroller) game._scroll = scroller.scrollTop;
 }
 
-function text(el, value) {
+function setText(el, value) {
   if (el && el.textContent !== value) el.textContent = value;
 }
 
+function applyStaticLabels() {
+  const shield = document.querySelector(".meter.shield span");
+  const armor = document.querySelector(".meter.armor span");
+  const fuel = document.querySelector(".meter.fuel span");
+  if (shield) shield.textContent = copy.hud.shield;
+  if (armor) armor.textContent = copy.hud.armor;
+  if (fuel) fuel.textContent = copy.hud.fuel;
+  setText(document.getElementById("brake"), copy.hud.stop);
+  setText(document.getElementById("fire"), copy.hud.fire);
+  setText(document.getElementById("mapbtn"), copy.hud.chart);
+  setText(document.getElementById("mute"), copy.hud.sound);
+  const stick = document.getElementById("stick");
+  if (stick) stick.setAttribute("aria-label", copy.hud.stick);
+  document.title = copy.meta.title;
+  const description = document.querySelector('meta[name="description"]');
+  if (description) description.setAttribute("content", copy.meta.description);
+  const apple = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+  if (apple) apple.setAttribute("content", copy.meta.title);
+}
+
+if (typeof document !== "undefined") applyStaticLabels();
+
 function titleHtml(game) {
   const saved = !!game.hasSave;
+  const help = copy.title.help.map((line) => `<li>${esc(line)}</li>`).join("");
   return `<div class="sheet">
     <div class="head">
-      <p class="kicker">a pocket cosmos</p>
-      <h1>Weird<br>Velocity</h1>
-      <p class="tag">You fly a ship named Probably. Trade odd cargo. Apologize with lasers.</p>
+      <p class="kicker">${esc(copy.title.kicker)}</p>
+      <h1>${esc(copy.title.nameLine1)}<br>${esc(copy.title.nameLine2)}</h1>
+      <p class="tag">${esc(fill(copy.title.tagline, { ship: copy.ship.name }))}</p>
     </div>
     <div class="body scroll">
-      <ul class="help">
-        <li>Drag the stick, or use WASD. You keep your drift.</li>
-        <li>Stop brakes. Fire shoots, and holding it is fine.</li>
-        <li>Land and Jump appear when you are close.</li>
-        <li>The chart plots a course. Beacons do the leaving.</li>
-      </ul>
+      <ul class="help">${help}</ul>
     </div>
     <div class="foot col">
-      <button type="button" class="primary" data-act="new">New voyage</button>
-      ${saved ? `<button type="button" data-act="continue">Continue</button>` : ""}
-      ${saved ? `<button type="button" class="texty" data-act="erase">Erase saved voyage</button>` : ""}
+      <button type="button" class="primary" data-act="new">${esc(copy.title.newVoyage)}</button>
+      ${saved ? `<button type="button" data-act="continue">${esc(copy.title.continue)}</button>` : ""}
+      ${saved ? `<button type="button" class="texty" data-act="erase">${esc(copy.title.erase)}</button>` : ""}
     </div>
   </div>`;
 }
 
 function goodsHtml(game) {
-  let html = `<p class="hold">Hold ${cargoUsed(game)} / ${game.holdMax} · ${game.credits.toLocaleString("en-US")} cr</p>`;
+  let html = `<p class="hold">${esc(fill(copy.screens.hold, {
+    used: cargoUsed(game),
+    max: game.holdMax,
+    credits: game.credits.toLocaleString("en-US"),
+  }))}</p>`;
   for (const mission of game.missions) {
     if (mission.type === "delivery") {
-      html += `<p class="contract">Contract cargo: ${esc(mission.label)} (${mission.hold}) → ${esc(mission.destName)}</p>`;
+      html += `<p class="contract">${esc(fill(copy.screens.contractCargo, {
+        label: mission.label,
+        hold: mission.hold,
+        dest: mission.destName,
+      }))}</p>`;
     }
   }
   for (const good of GOODS) {
@@ -56,15 +83,17 @@ function goodsHtml(game) {
     const sell = sellPrice(game, game.systemId, good.id);
     const ratio = buy / good.base;
     const mood = ratio < 0.88 ? "cheap" : ratio > 1.22 ? "steep" : "fair";
+    const moodWord = copy.screens[mood];
     const have = game.cargo[good.id] || 0;
     html += `<div class="good">
       <div class="name">${esc(good.name)}</div>
-      <div class="meta"><span class="tag ${mood}">${mood}</span> · buy ${buy} · sell ${sell} · you ${have}</div>
+      <div class="meta">${esc(good.about || "")}</div>
+      <div class="meta"><span class="tag ${mood}">${esc(moodWord)}</span> · ${esc(fill(copy.screens.goodMeta, { buy, sell, have }))}</div>
       <div class="btns">
-        <button type="button" data-act="buy" data-good="${good.id}" data-n="1">Buy 1</button>
-        <button type="button" data-act="buy" data-good="${good.id}" data-n="5">Buy 5</button>
-        <button type="button" data-act="sell" data-good="${good.id}" data-n="1" ${have ? "" : "disabled"}>Sell 1</button>
-        <button type="button" data-act="sell" data-good="${good.id}" data-n="5" ${have ? "" : "disabled"}>Sell 5</button>
+        <button type="button" data-act="buy" data-good="${good.id}" data-n="1">${esc(copy.screens.buy1)}</button>
+        <button type="button" data-act="buy" data-good="${good.id}" data-n="5">${esc(copy.screens.buy5)}</button>
+        <button type="button" data-act="sell" data-good="${good.id}" data-n="1" ${have ? "" : "disabled"}>${esc(copy.screens.sell1)}</button>
+        <button type="button" data-act="sell" data-good="${good.id}" data-n="5" ${have ? "" : "disabled"}>${esc(copy.screens.sell5)}</button>
       </div>
     </div>`;
   }
@@ -72,31 +101,42 @@ function goodsHtml(game) {
 }
 
 function progress(game, mission) {
-  if (mission.type === "bounty") return `${mission.have}/${mission.need} in ${system(mission.systemId).name}`;
-  if (mission.type === "errand") {
-    return `${game.cargo[mission.goodId] || 0}/${mission.count} ${mission.goodName} → ${mission.destName}`;
+  if (mission.type === "bounty") {
+    return fill(copy.screens.bountyProgress, {
+      have: mission.have,
+      need: mission.need,
+      system: system(mission.systemId).name,
+    });
   }
-  return `${mission.hold} hold → ${mission.destName}`;
+  if (mission.type === "errand") {
+    return fill(copy.screens.errandProgress, {
+      have: game.cargo[mission.goodId] || 0,
+      count: mission.count,
+      good: mission.goodName,
+      dest: mission.destName,
+    });
+  }
+  return fill(copy.screens.deliveryProgress, { hold: mission.hold, dest: mission.destName });
 }
 
 function blockReason(game, mission) {
-  if (game.missions.length >= 3) return "Three contracts is enough worry.";
-  if (mission.type === "delivery" && cargoUsed(game) + mission.hold > game.holdMax) return "Not enough hold.";
+  if (game.missions.length >= 3) return copy.messages.tooMany;
+  if (mission.type === "delivery" && cargoUsed(game) + mission.hold > game.holdMax) return copy.messages.noHold;
   return "";
 }
 
 function jobsHtml(game) {
-  let html = `<h3>Yours</h3>`;
-  if (!game.missions.length) html += `<p class="dim">No active contracts. The chorus is delighted.</p>`;
+  let html = `<h3>${esc(copy.screens.yours)}</h3>`;
+  if (!game.missions.length) html += `<p class="dim">${esc(copy.screens.noActive)}</p>`;
   for (const mission of game.missions) {
     html += `<article class="job">
       <h3>${esc(mission.title)}</h3>
       <p>${esc(mission.detail)}</p>
       <p class="meta">${esc(progress(game, mission))} · ${mission.reward} cr</p>
-      <button type="button" data-act="abandon" data-uid="${esc(mission.uid)}">Abandon</button>
+      <button type="button" data-act="abandon" data-uid="${esc(mission.uid)}">${esc(copy.screens.abandon)}</button>
     </article>`;
   }
-  html += `<h3>Board</h3>`;
+  html += `<h3>${esc(copy.screens.board)}</h3>`;
   const slots = game.boards[game.dockId] || [];
   let shown = 0;
   slots.forEach((mission, index) => {
@@ -107,11 +147,11 @@ function jobsHtml(game) {
       <h3>${esc(mission.title)}</h3>
       <p>${esc(mission.detail)}</p>
       <p class="meta">${mission.reward} cr</p>
-      <button type="button" data-act="accept" data-slot="${index}" ${reason ? "disabled" : ""}>Accept</button>
+      <button type="button" data-act="accept" data-slot="${index}" ${reason ? "disabled" : ""}>${esc(copy.screens.accept)}</button>
       ${reason ? `<p class="dim">${esc(reason)}</p>` : ""}
     </article>`;
   });
-  if (!shown) html += `<p class="dim">The board is thinking. Jump somewhere and it will try again.</p>`;
+  if (!shown) html += `<p class="dim">${esc(copy.screens.boardEmpty)}</p>`;
   return html;
 }
 
@@ -121,18 +161,26 @@ function yardHtml(game) {
   const armorRoom = game.player.armorMax - game.player.armor;
   const armorGet = Math.min(armorRoom, Math.floor(game.credits / REPAIR_PRICE));
   const kind = game.bodies.find((b) => b.id === game.dockId)?.kind;
-  return `<p>Probably has one sincere engine and several decorative ones. The Apology Beam says excuse me at a frequency that stings.</p>
-    <p class="meta">Fuel ${Math.ceil(game.fuel)}/${game.fuelMax} · ${FUEL_PRICE} cr each. Fuel is for leaving, not for flying.</p>
+  return `<p>${esc(fill(copy.screens.yardIntro, { ship: copy.ship.name }))}</p>
+    <p class="meta">${esc(fill(copy.screens.yardFuel, {
+      have: Math.ceil(game.fuel),
+      max: game.fuelMax,
+      price: FUEL_PRICE,
+    }))}</p>
     <div class="btns">
-      <button type="button" data-act="fuel" data-n="${fuelGet}" ${fuelGet > 0 ? "" : "disabled"}>Fill · ${fuelGet * FUEL_PRICE} cr</button>
-      <button type="button" data-act="fuel" data-n="10" ${fuelRoom > 0 ? "" : "disabled"}>+10 fuel</button>
+      <button type="button" data-act="fuel" data-n="${fuelGet}" ${fuelGet > 0 ? "" : "disabled"}>${esc(fill(copy.screens.fillFuel, { cost: fuelGet * FUEL_PRICE }))}</button>
+      <button type="button" data-act="fuel" data-n="10" ${fuelRoom > 0 ? "" : "disabled"}>${esc(copy.screens.addFuel)}</button>
     </div>
-    <p class="meta">Armor ${Math.ceil(game.player.armor)}/${game.player.armorMax} · ${REPAIR_PRICE} cr each</p>
+    <p class="meta">${esc(fill(copy.screens.yardArmor, {
+      have: Math.ceil(game.player.armor),
+      max: game.player.armorMax,
+      price: REPAIR_PRICE,
+    }))}</p>
     <div class="btns">
-      <button type="button" data-act="repair" data-n="${armorGet}" ${armorGet > 0 ? "" : "disabled"}>Repair · ${armorGet * REPAIR_PRICE} cr</button>
-      <button type="button" data-act="repair" data-n="10" ${armorRoom > 0 ? "" : "disabled"}>+10 armor</button>
+      <button type="button" data-act="repair" data-n="${armorGet}" ${armorGet > 0 ? "" : "disabled"}>${esc(fill(copy.screens.repair, { cost: armorGet * REPAIR_PRICE }))}</button>
+      <button type="button" data-act="repair" data-n="10" ${armorRoom > 0 ? "" : "disabled"}>${esc(copy.screens.addArmor)}</button>
     </div>
-    <p class="dim">${kind === "planet" ? "Repairs are a ladder and a strong opinion." : "A hose, a stamp, and someone who has seen worse hulls."}</p>`;
+    <p class="dim">${esc(kind === "planet" ? copy.screens.yardPlanet : copy.screens.yardStation)}</p>`;
 }
 
 function dockHtml(game) {
@@ -140,24 +188,25 @@ function dockHtml(game) {
   const sys = system(game.systemId);
   const tab = game.dockTab || "trade";
   const bodyHtml = tab === "jobs" ? jobsHtml(game) : tab === "yard" ? yardHtml(game) : goodsHtml(game);
-  const note = game.log[0] ? `<p class="note">${esc(game.log[0])}</p>` : "";
+  const noted = (game.log || []).find((entry) => !/appeal granted|filing fee|boards are bored/i.test(entry));
+  const note = noted ? `<p class="note">${esc(noted)}</p>` : "";
   return `<div class="sheet">
     <div class="head">
       <p class="kicker">${esc(sys.name)}</p>
-      <h2>${esc(body ? body.name : "Dock")}</h2>
+      <h2>${esc(body ? body.name : copy.screens.dockFallback)}</h2>
       <p>${esc(body ? body.desc : "")}</p>
       <p class="specialty">${esc(sys.specialty)}</p>
       ${note}
     </div>
     <div class="tabs">
-      <button type="button" data-act="tab" data-tab="trade" class="${tab === "trade" ? "on" : ""}">Trade</button>
-      <button type="button" data-act="tab" data-tab="jobs" class="${tab === "jobs" ? "on" : ""}">Missions</button>
-      <button type="button" data-act="tab" data-tab="yard" class="${tab === "yard" ? "on" : ""}">Yard</button>
+      <button type="button" data-act="tab" data-tab="trade" class="${tab === "trade" ? "on" : ""}">${esc(copy.screens.trade)}</button>
+      <button type="button" data-act="tab" data-tab="jobs" class="${tab === "jobs" ? "on" : ""}">${esc(copy.screens.missions)}</button>
+      <button type="button" data-act="tab" data-tab="yard" class="${tab === "yard" ? "on" : ""}">${esc(copy.screens.yard)}</button>
     </div>
     <div class="body scroll">${bodyHtml}</div>
     <div class="foot">
-      <button type="button" data-act="open-map">Chart</button>
-      <button type="button" class="primary" data-act="launch">Launch</button>
+      <button type="button" data-act="open-map">${esc(copy.screens.chart)}</button>
+      <button type="button" class="primary" data-act="launch">${esc(copy.screens.launch)}</button>
     </div>
   </div>`;
 }
@@ -191,7 +240,7 @@ function mapHtml(game) {
   }).join("");
   return `<div class="sheet">
     <div class="head">
-      <p class="kicker">Soft Customs chart</p>
+      <p class="kicker">${esc(fill(copy.screens.chartKicker, { customs: copy.factions.customs }))}</p>
       <h2>${esc(focus.name)}</h2>
       <p>${esc(focus.blurb)}</p>
       <p class="specialty">${esc(focus.specialty)}</p>
@@ -201,13 +250,13 @@ function mapHtml(game) {
         <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${lines}</svg>
         ${nodes}
       </div>
-      <p class="meta">${here ? "You are already bothering this system." : "Route: " + esc(path)}</p>
-      <p class="meta">${here ? "" : `Next beacon costs ${JUMP_FUEL} fuel. You have ${Math.floor(game.fuel)}.`}</p>
-      ${plotted ? `<p class="note">Course plotted. Follow the amber arrow.</p>` : ""}
+      <p class="meta">${here ? esc(copy.screens.alreadyHere) : esc(fill(copy.screens.route, { path }))}</p>
+      <p class="meta">${here ? "" : esc(fill(copy.screens.beaconCost, { cost: JUMP_FUEL, have: Math.floor(game.fuel) }))}</p>
+      ${plotted ? `<p class="note">${esc(copy.screens.plotted)}</p>` : ""}
     </div>
     <div class="foot">
-      ${here ? "" : `<button type="button" class="primary" data-act="plot" data-sys="${focus.id}">Plot course</button>`}
-      <button type="button" data-act="close-map">${game.mapReturn === "dock" ? "Back to dock" : "Back to ship"}</button>
+      ${here ? "" : `<button type="button" class="primary" data-act="plot" data-sys="${focus.id}">${esc(copy.screens.plot)}</button>`}
+      <button type="button" data-act="close-map">${esc(game.mapReturn === "dock" ? copy.screens.backDock : copy.screens.backShip)}</button>
     </div>
   </div>`;
 }
@@ -215,12 +264,12 @@ function mapHtml(game) {
 function deadHtml() {
   return `<div class="sheet">
     <div class="head">
-      <p class="kicker">incident</p>
-      <h2>Probably has become a statistic.</h2>
-      <p>The Rude Chorus will deny everything. Your cargo is still in the argument. A little armor is loaned back, and ten percent of your credits files the paperwork.</p>
+      <p class="kicker">${esc(copy.screens.deathKicker)}</p>
+      <h2>${esc(fill(copy.screens.deathTitle, { ship: copy.ship.name }))}</h2>
+      <p>${esc(fill(copy.screens.deathBody, { faction: copy.factions.chorus }))}</p>
     </div>
     <div class="foot">
-      <button type="button" class="primary" data-act="respawn">File an appeal</button>
+      <button type="button" class="primary" data-act="respawn">${esc(copy.screens.appeal)}</button>
     </div>
   </div>`;
 }
@@ -271,17 +320,17 @@ function handle(game, el) {
   } else if (act === "buy") {
     const good = GOODS.find((g) => g.id === el.dataset.good);
     const result = buyGood(game, el.dataset.good, Number(el.dataset.n));
-    afterTrade(game, result, (r) => `Bought ${r.n} ${good.name}.`);
+    afterTrade(game, result, (r) => fill(copy.messages.bought, { n: r.n, name: good.name }));
   } else if (act === "sell") {
     const good = GOODS.find((g) => g.id === el.dataset.good);
     const result = sellGood(game, el.dataset.good, Number(el.dataset.n));
-    afterTrade(game, result, (r) => `Sold ${r.n} ${good.name} for ${r.gain} cr.`);
+    afterTrade(game, result, (r) => fill(copy.messages.sold, { n: r.n, name: good.name, gain: r.gain }));
   } else if (act === "fuel") {
     const result = buyFuel(game, Number(el.dataset.n));
-    afterTrade(game, result, (r) => `Took on ${r.n} fuel.`);
+    afterTrade(game, result, (r) => fill(copy.messages.fueled, { n: r.n }));
   } else if (act === "repair") {
     const result = buyRepair(game, Number(el.dataset.n));
-    afterTrade(game, result, (r) => `Patched ${r.n} armor.`);
+    afterTrade(game, result, (r) => fill(copy.messages.repaired, { n: r.n }));
   } else if (act === "accept") {
     const result = acceptMission(game, game.dockId, Number(el.dataset.slot));
     if (!result.ok) say(game, result.reason);
@@ -298,7 +347,7 @@ function handle(game, el) {
     const id = el.dataset.sys;
     if (id !== game.systemId) {
       game.navSystem = id;
-      say(game, "Course plotted toward " + system(id).name + ".");
+      say(game, fill(copy.messages.course, { name: system(id).name }));
       sfx("ui");
       persist(game);
     }
@@ -318,14 +367,21 @@ function updateAct(game) {
   }
   if (game.near.kind === "dock") {
     act.disabled = false;
-    text(act, "Land · " + game.near.name);
+    setText(act, fill(copy.hud.landButton, { name: game.near.name }));
   } else if (game.fuel < JUMP_FUEL) {
     act.disabled = true;
-    text(act, "Need " + JUMP_FUEL + " fuel");
+    setText(act, fill(copy.hud.needFuel, { n: JUMP_FUEL }));
   } else {
     act.disabled = false;
-    text(act, "Jump · " + game.near.name + " · " + JUMP_FUEL);
+    setText(act, fill(copy.hud.jumpButton, { name: game.near.name, n: JUMP_FUEL }));
   }
+}
+
+function flightTip(game) {
+  if (!game.near) return "";
+  if (game.near.kind === "dock") return fill(copy.hud.landAt, { name: game.near.name });
+  if (game.near.kind === "jump") return fill(copy.hud.jumpTo, { name: game.near.name });
+  return "";
 }
 
 let shown = "";
@@ -349,11 +405,11 @@ export function sync(game) {
   const hud = game.mode === "flight" || game.mode === "warp";
   if (hud && player) {
     const sys = system(game.systemId);
-    text(document.getElementById("sysname"), sys ? sys.name : "");
-    text(document.getElementById("missionline"), missionBlurb(game));
-    text(document.getElementById("logline"), game.log.slice(0, 2).join("  ·  "));
-    text(document.getElementById("credits"), game.credits.toLocaleString("en-US") + " cr");
-    text(document.getElementById("speed"), "v " + Math.round(Math.hypot(player.vx, player.vy)));
+    setText(document.getElementById("sysname"), sys ? sys.name : "");
+    setText(document.getElementById("missionline"), missionBlurb(game));
+    setText(document.getElementById("logline"), flightTip(game));
+    setText(document.getElementById("credits"), fill(copy.hud.credits, { n: game.credits.toLocaleString("en-US") }));
+    setText(document.getElementById("speed"), fill(copy.hud.speed, { n: Math.round(Math.hypot(player.vx, player.vy)) }));
     const shield = document.getElementById("shieldbar");
     const armor = document.getElementById("armorbar");
     const fuel = document.getElementById("fuelbar");
@@ -362,11 +418,11 @@ export function sync(game) {
     fuel.style.width = (100 * game.fuel / game.fuelMax) + "%";
     document.getElementById("fuelmeter").classList.toggle("low", game.fuel < JUMP_FUEL);
   }
-  text(document.getElementById("mute"), game.mute ? "Muted" : "Sound");
+  setText(document.getElementById("mute"), game.mute ? copy.hud.muted : copy.hud.sound);
   const banner = document.getElementById("banner");
   if (game.banner && (game.mode === "flight" || game.mode === "warp")) {
     banner.hidden = false;
-    text(banner, game.banner.text);
+    setText(banner, game.banner.text);
   } else {
     banner.hidden = true;
   }

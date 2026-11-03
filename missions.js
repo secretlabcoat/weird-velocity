@@ -1,19 +1,12 @@
 // Three contract types: bounty, delivery, errand.
 
 import { GOODS, SYSTEMS, system, route } from "./data/galaxy.js";
+import copy, { fill } from "./data/text.js";
 import { buyPrice, cargoUsed } from "./trade.js";
 import { hash } from "./util.js";
 import { say } from "./state.js";
 import { sfx } from "./audio.js";
 import { persist } from "./save.js";
-
-const DELIVERY_LABELS = [
-  "postponed weather",
-  "a polite grudge",
-  "unlabeled singing",
-  "damp paperwork",
-  "a moon's baby tooth",
-];
 
 function stationsIn(systemId) {
   return system(systemId).bodies.filter((b) => b.kind === "station");
@@ -30,7 +23,7 @@ function neighborStations(systemId) {
 function grant(game, mission) {
   game.credits += mission.reward;
   game.stats.earned += mission.reward;
-  game.banner = { t: 4.2, text: `${mission.done} +${mission.reward} cr` };
+  game.banner = { t: 4.2, text: fill(copy.missions.complete, { reward: mission.reward }) };
   say(game, game.banner.text);
   sfx("mission");
   persist(game);
@@ -41,20 +34,24 @@ function makeOffer(game, sys, body, slot) {
   const uid = "m" + game.serial;
   const n = hash(body.id, slot, game.salt);
   if (slot === 0) {
-    const titles = ["Quiet the chorus", "Subtract some volume", "Ask the rude ships to leave"];
+    const titles = copy.missions.bounty.titles;
     const need = 2;
     return {
       uid, type: "bounty", systemId: sys.id, need, have: 0,
       reward: 700,
       title: titles[n % titles.length],
-      detail: `The Rude Chorus is rehearsing in ${sys.name}. Subtract ${need} of them. They will apologize, incorrectly.`,
-      done: "A clerk files the silence under victory.",
+      detail: fill(copy.missions.bounty.detail, {
+        faction: copy.factions.chorus,
+        system: sys.name,
+        count: need,
+      }),
     };
   }
   const neighbors = neighborStations(sys.id);
   const pick = neighbors[n % neighbors.length];
   if (slot === 1) {
-    const label = DELIVERY_LABELS[n % DELIVERY_LABELS.length];
+    const labels = copy.missions.delivery.labels;
+    const label = labels[n % labels.length];
     const hold = 4;
     return {
       uid, type: "delivery", hold, label,
@@ -62,9 +59,13 @@ function makeOffer(game, sys, body, slot) {
       destSystem: pick.systemId,
       destName: pick.body.name,
       reward: 820,
-      title: "Mail that learned to breathe",
-      detail: `Carry ${hold} hold of ${label} to ${pick.body.name} in ${system(pick.systemId).name} before it becomes a hobby.`,
-      done: "The parcel sighs, which means it arrived.",
+      title: copy.missions.delivery.title,
+      detail: fill(copy.missions.delivery.detail, {
+        hold,
+        label,
+        dock: pick.body.name,
+        system: system(pick.systemId).name,
+      }),
     };
   }
   const good = GOODS[n % GOODS.length];
@@ -79,9 +80,12 @@ function makeOffer(game, sys, body, slot) {
     destSystem: pick.systemId,
     destName: pick.body.name,
     reward: destPrice * count + 360,
-    title: "A shopping list with opinions",
-    detail: `${pick.body.name} wants ${count} ${good.name}. They insist the cheap ones taste louder.`,
-    done: "The order is accepted with a stamp that just says YES.",
+    title: copy.missions.errand.title,
+    detail: fill(copy.missions.errand.detail, {
+      dock: pick.body.name,
+      count,
+      good: good.name,
+    }),
   };
 }
 
@@ -100,14 +104,14 @@ export function refreshBoards(game) {
 export function acceptMission(game, stationId, slot) {
   const board = game.boards[stationId];
   const mission = board && board[slot];
-  if (!mission) return { ok: false, reason: "That note blew away." };
-  if (game.missions.length >= 3) return { ok: false, reason: "Three contracts is enough worry." };
+  if (!mission) return { ok: false, reason: copy.messages.noteGone };
+  if (game.missions.length >= 3) return { ok: false, reason: copy.messages.tooMany };
   if (mission.type === "delivery" && cargoUsed(game) + mission.hold > game.holdMax) {
-    return { ok: false, reason: "Not enough hold for the parcel." };
+    return { ok: false, reason: copy.messages.noHoldParcel };
   }
   board[slot] = null;
   game.missions.push(mission);
-  say(game, "Accepted: " + mission.title);
+  say(game, fill(copy.messages.accepted, { title: mission.title }));
   sfx("ui");
   persist(game);
   game.uiRev++;
@@ -118,7 +122,7 @@ export function abandonMission(game, uid) {
   const mission = game.missions.find((m) => m.uid === uid);
   if (!mission) return;
   game.missions = game.missions.filter((m) => m.uid !== uid);
-  say(game, "Abandoned: " + mission.title);
+  say(game, fill(copy.messages.abandoned, { title: mission.title }));
   persist(game);
   game.uiRev++;
 }
@@ -136,7 +140,7 @@ export function onPirateKilled(game) {
     for (const mission of done) grant(game, mission);
   } else {
     const bounty = game.missions.find((m) => m.type === "bounty" && m.systemId === game.systemId);
-    if (bounty) say(game, `${bounty.have}/${bounty.need} quieted`);
+    if (bounty) say(game, fill(copy.messages.bountyCount, { have: bounty.have, need: bounty.need }));
   }
 }
 
@@ -160,13 +164,11 @@ export function onDock(game) {
 
 export function missionBlurb(game) {
   const mission = game.missions[0];
-  if (!mission) return "No contract. Boards are bored.";
-  let line = mission.title;
-  if (mission.type === "bounty") line += ` (${mission.have}/${mission.need})`;
-  if (mission.type === "errand") line += ` (${game.cargo[mission.goodId] || 0}/${mission.count})`;
-  if (mission.type === "delivery") line += ` → ${mission.destName}`;
-  if (game.missions.length > 1) line += ` +${game.missions.length - 1}`;
-  return line;
+  if (!mission) return copy.hud.noContract;
+  const destination = mission.type === "bounty"
+    ? system(mission.systemId).name
+    : mission.destName;
+  return fill(copy.hud.contract, { job: mission.title, destination });
 }
 
 export function compassTarget(game) {
@@ -182,7 +184,7 @@ export function compassTarget(game) {
         const d = Math.hypot(pirate.x - player.x, pirate.y - player.y);
         if (d < bestD) { bestD = d; best = pirate; }
       }
-      if (best) return { x: best.x, y: best.y, label: "Chorus" };
+      if (best) return { x: best.x, y: best.y, label: copy.hud.chorusMark };
     }
     if ((mission.type === "delivery" || mission.type === "errand") && mission.destSystem === game.systemId) {
       const body = game.bodies.find((b) => b.id === mission.destId);
@@ -192,13 +194,13 @@ export function compassTarget(game) {
     if (destSys && destSys !== game.systemId) {
       const hop = route(game.systemId, destSys)[1];
       const beacon = hop && game.beacons.find((b) => b.to === hop);
-      if (beacon) return { x: beacon.x, y: beacon.y, label: "To " + system(hop).short };
+      if (beacon) return { x: beacon.x, y: beacon.y, label: fill(copy.hud.routeTo, { name: system(hop).short }) };
     }
   }
   if (game.navSystem && game.navSystem !== game.systemId) {
     const hop = route(game.systemId, game.navSystem)[1];
     const beacon = hop && game.beacons.find((b) => b.to === hop);
-    if (beacon) return { x: beacon.x, y: beacon.y, label: "To " + system(hop).short };
+    if (beacon) return { x: beacon.x, y: beacon.y, label: fill(copy.hud.routeTo, { name: system(hop).short }) };
   }
   return null;
 }

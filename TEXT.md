@@ -14,7 +14,7 @@ Low prices: Starlight Extract (Bottled light. Lamps and kitchens both ask for it
 
 ### Central Station (dock)
 
-A well-maintained orbital station offering standard docking services and trade goods.
+A well-maintained orbital station offering standard docking services and trade goods. Berth 4 is clear.
 
 ### Terra Nova (planet)
 

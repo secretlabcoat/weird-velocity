@@ -3,33 +3,33 @@
 import { WORLD, hash } from "../util.js";
 
 export const GOODS = [
-  { id: "starlight", name: "Pickled Starlight", base: 90 },
-  { id: "regret", name: "Regret Jam", base: 130 },
-  { id: "gravity", name: "Unlicensed Gravity", base: 240 },
-  { id: "threats", name: "Polite Threats", base: 160 },
-  { id: "honey", name: "Clock Honey", base: 100 },
-  { id: "echoes", name: "Spare Echoes", base: 110 },
-  { id: "moss", name: "Bureaucratic Moss", base: 70 },
-  { id: "numbers", name: "Warm Numbers", base: 180 },
+  { id: "starlight", name: "Starlight Extract", base: 90 },
+  { id: "regret", name: "Berry Jam", base: 130 },
+  { id: "gravity", name: "Gravity Stabilizers", base: 240 },
+  { id: "threats", name: "Security Protocols", base: 160 },
+  { id: "honey", name: "Synth Honey", base: 100 },
+  { id: "echoes", name: "Data Echoes", base: 110 },
+  { id: "moss", name: "Agricultural Moss", base: 70 },
+  { id: "numbers", name: "Telemetry Data", base: 180 },
 ];
 
 export const PIRATE_NAMES = [
-  "Excuse Me", "Volume Warning", "Unsolicited Sequel", "Loud Uncle",
-  "Please Hold", "Free Samples", "Wrong Number", "Mild Threat",
-  "Extra Sauce", "No Thank You", "Standing Ovation", "The Aside",
+  "Corsair Alpha", "Raider One", "Vanguard", "Shadow Stalker",
+  "Iron Wing", "Crimson Fleet", "Void Runner", "Dark Star",
+  "Strikeforce", "Black Osprey", "Phantom", "Apex",
 ];
 
 export const SOLO_NAMES = ["The Footnote", "Captain Meanwhile", "Soloist Annoyed"];
 
 export const BARKS = [
-  "SORRY ABOUT THE LASERS",
-  "THIS IS A ROBBERY, PLEASE",
-  "YOUR CARGO LOOKS AVAILABLE",
-  "I BROUGHT A FORM FOR THIS",
-  "EXCUSE THE VOLUME",
-  "WE CAN SPLIT THE MOON",
-  "I'M BETWEEN HOBBIES",
-  "PLEASE HOLD STILL",
+  "PREPARE TO BE BOARDED",
+  "SURRENDER YOUR CARGO",
+  "YOU CANNOT ESCAPE",
+  "TARGET ACQUIRED",
+  "OPEN FIRE",
+  "PREPARE FOR COMBAT",
+  "ALL YOUR ORE ARE BELONG",
+  "HOLD YOUR POSITION",
 ];
 
 const PRICE = {
@@ -45,20 +45,20 @@ const PRICE = {
 export const SYSTEMS = [
   {
     id: "brine",
-    name: "Brine Halo",
-    short: "Brine",
+    name: "Alpha Prime",
+    short: "Alpha",
     mapX: 28, mapY: 70,
-    blurb: "Edible weather around a moon that will not commit.",
-    specialty: "Cheap: pickled starlight, regret jam. Pays well for warm numbers.",
+    blurb: "A peaceful trading hub with stable orbits and friendly stations.",
+    specialty: "Cheap: starlight extract, berry jam. Safe for new pilots.",
     accent: "#3ec6b8",
     nebula: ["rgba(30,150,140,0.55)", "rgba(14,70,110,0.5)", "rgba(210,140,60,0.35)"],
     links: ["orchard", "courtesy"],
     prices: PRICE.brine,
     bodies: [
-      { id: "pickle", kind: "station", name: "Pickle Dock", x: 2000, y: 1980, r: 42, look: "station",
-        desc: "The dockmaster lives in a jar on purpose and stamps forms with a damp thumb. Fuel here smells like dill." },
-      { id: "wetmoon", kind: "planet", name: "Wet Moon of Maybe", x: 1040, y: 1380, r: 84, look: "banded", ring: true,
-        desc: "Rain falls up on Tuesdays and sideways during apologies. It exports pickled starlight because it cannot commit to being bright." },
+      { id: "pickle", kind: "station", name: "Central Station", x: 2000, y: 1980, r: 42, look: "station",
+        desc: "A well-maintained orbital station offering standard docking services and trade goods." },
+      { id: "wetmoon", kind: "planet", name: "Terra Nova", x: 1040, y: 1380, r: 84, look: "banded", ring: true,
+        desc: "A lush world with vast oceans and calm weather patterns." },
     ],
     beacons: [
       { to: "orchard", x: 3280, y: 760 },

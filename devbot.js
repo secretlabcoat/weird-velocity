@@ -49,11 +49,49 @@ function load(key) {
 function store(key, value) {
   try { localStorage.setItem(key, value); } catch { /* private mode */ }
 }
+function cleanSecret(value) {
+  return String(value || "")
+    .replace(/[\u200B-\u200D\uFEFF\u2060\u00A0]/g, "")
+    .replace(/[\u0000-\u001F\u007F]/g, "")
+    .replace(/\s+/g, "");
+}
+
+function normalizeBase(value) {
+  let url = cleanSecret(value);
+  if (!url) return DEFAULT_BASE;
+  const scheme = url.match(/^([a-zA-Z][a-zA-Z0-9+.-]*:)\/\//);
+  if (/^ttps:\/\//i.test(url) || /^htps:\/\//i.test(url)) {
+    url = "https://" + url.slice(url.indexOf("://") + 3);
+  } else if (url.startsWith("//")) url = "https:" + url;
+  else if (!scheme) url = "https://" + url.replace(/^\/+/, "");
+  url = url.replace(/\/+$/, "");
+  while (/\/chat\/completions$/i.test(url)) {
+    url = url.replace(/\/chat\/completions$/i, "").replace(/\/+$/, "");
+  }
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return DEFAULT_BASE;
+    const host = parsed.hostname;
+    const hostOk = host === "localhost" || /^\d{1,3}(\.\d{1,3}){3}$/.test(host) || host.includes(".");
+    if (!hostOk) return DEFAULT_BASE;
+    let out = parsed.origin + parsed.pathname.replace(/\/+$/, "");
+    while (/\/chat\/completions$/i.test(out)) {
+      out = out.replace(/\/chat\/completions$/i, "").replace(/\/+$/, "");
+    }
+    return out || DEFAULT_BASE;
+  } catch {
+    return DEFAULT_BASE;
+  }
+}
+
 function llmBase() {
-  return (load(LS.base) || DEFAULT_BASE).trim();
+  const saved = load(LS.base);
+  const base = normalizeBase(saved);
+  if (saved !== base) store(LS.base, base);
+  return base;
 }
 function normalizeModel(value) {
-  const model = (value || "").trim() || DEFAULT_MODEL;
+  const model = cleanSecret(value) || DEFAULT_MODEL;
   return RETIRED_MODELS.has(model) ? DEFAULT_MODEL : model;
 }
 function llmModel() {
@@ -68,9 +106,7 @@ function sleep(ms) {
 let reportStatus = () => {};
 
 function chatUrl(base) {
-  const trimmed = base.trim().replace(/\/+$/, "");
-  if (trimmed.endsWith("/chat/completions")) return trimmed;
-  return trimmed + "/chat/completions";
+  return normalizeBase(base) + "/chat/completions";
 }
 
 function stripFences(text) {
@@ -115,7 +151,7 @@ function contentsUrl(path) {
 function ghHeaders(token) {
   return {
     Accept: "application/vnd.github+json",
-    Authorization: "Bearer " + token,
+    Authorization: "Bearer " + cleanSecret(token),
     "X-GitHub-Api-Version": "2022-11-28",
     "User-Agent": "weird-velocity-devbot",
   };
@@ -192,11 +228,12 @@ function parseEdits(text, expected) {
 
 function detailLine(err) {
   const parts = [];
+  const name = err && err.name ? err.name : "";
+  const message = err && err.message ? err.message : "";
+  if (name || message) parts.push([name, message].filter(Boolean).join(": "));
   if (err && err.status) parts.push("HTTP " + err.status);
-  if (err && err.message) parts.push(err.message);
-  if (err && err.body && !String(err.message || "").includes(String(err.body).slice(0, 80))) {
-    parts.push(err.body);
-  }
+  if (err && err.url) parts.push(err.url);
+  if (err && err.body && !parts.join(" ").includes(String(err.body).slice(0, 80))) parts.push(err.body);
   const line = parts.join(" — ").trim();
   return (line || String(err || "Unknown error")).slice(0, 700);
 }
@@ -238,13 +275,15 @@ function explain(err) {
 }
 
 async function chatOnce(messages, maxTokens, model) {
+  const url = chatUrl(llmBase());
+  const key = cleanSecret(load(LS.key));
   let response;
   try {
-    response = await fetch(chatUrl(llmBase()), {
+    response = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: "Bearer " + load(LS.key).trim(),
+        Authorization: "Bearer " + key,
       },
       body: JSON.stringify({
         model,
@@ -255,15 +294,20 @@ async function chatOnce(messages, maxTokens, model) {
       }),
     });
   } catch (err) {
-    throw Object.assign(new Error(err && err.message ? err.message : "Failed to fetch"), { where: "llm" });
+    const wrapped = new Error(err && err.message ? err.message : "Failed to fetch");
+    wrapped.name = err && err.name ? err.name : "TypeError";
+    wrapped.where = "llm";
+    wrapped.url = url;
+    throw wrapped;
   }
   const raw = await response.text();
   if (!response.ok) {
-    throw Object.assign(new Error("LLM " + response.status + " " + raw.slice(0, 300)), {
-      where: "llm",
-      status: response.status,
-      body: raw.slice(0, 500),
-    });
+    const failed = new Error("LLM " + response.status + " " + raw.slice(0, 300));
+    failed.where = "llm";
+    failed.status = response.status;
+    failed.body = raw.slice(0, 500);
+    failed.url = url;
+    throw failed;
   }
   let data;
   try { data = JSON.parse(raw); }
@@ -396,6 +440,14 @@ function install() {
     #dev-keytest li { font-size: 15px; line-height: 1.35; }
     #dev-keytest .ok { color: #b6f2a2; }
     #dev-keytest .bad { color: #ffb4a8; }
+    #dev-keytest .err-detail {
+      margin: 2px 0 8px;
+      color: #efe9dc;
+      font-size: 13px;
+      line-height: 1.35;
+      word-break: break-word;
+    }
+    #dev-advanced { align-self: flex-start; min-height: 36px; background: transparent; }
     body.dev #controls { bottom: var(--devbot-h, 210px); }
     body.dev #overlay { bottom: var(--devbot-h, 210px); overflow: hidden; }
     body.dev #overlay .sheet { max-height: 100%; }
@@ -415,9 +467,6 @@ function install() {
         </div>
       </div>
       <form id="dev-settings" hidden>
-        <label>AI address
-          <input id="dev-base" type="url" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off">
-        </label>
         <label>AI key
           <input id="dev-key" type="text" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off">
         </label>
@@ -427,6 +476,12 @@ function install() {
         <label>GitHub token
           <input id="dev-gh" type="text" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off" placeholder="Fine-grained token, contents read and write">
         </label>
+        <button type="button" id="dev-advanced">Advanced</button>
+        <div id="dev-base-wrap" hidden>
+          <label>AI address
+            <input id="dev-base" type="text" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" autocomplete="off">
+          </label>
+        </div>
         <div class="row">
           <button type="submit" id="dev-save" class="grow">Save</button>
           <button type="button" id="dev-test" class="grow">Test my keys</button>
@@ -480,11 +535,13 @@ function install() {
     setStatus(plain, detailLine(err), "bad");
   }
 
+  const ghInput = root.querySelector("#dev-gh");
+
   function fillSettings() {
-    baseInput.value = load(LS.base) || DEFAULT_BASE;
-    keyInput.value = load(LS.key);
+    baseInput.value = llmBase();
+    keyInput.value = cleanSecret(load(LS.key));
     modelInput.value = llmModel();
-    root.querySelector("#dev-gh").value = load(LS.gh);
+    ghInput.value = cleanSecret(load(LS.gh));
   }
 
   function placePinned() {
@@ -562,14 +619,19 @@ function install() {
 
   root.querySelector("#dev-gear").addEventListener("click", () => openSettings(settings.hidden));
   root.querySelector("#dev-back").addEventListener("click", () => openSettings(false));
+  root.querySelector("#dev-advanced").addEventListener("click", () => {
+    const wrap = root.querySelector("#dev-base-wrap");
+    const open = wrap.hidden;
+    wrap.hidden = !open;
+    root.querySelector("#dev-advanced").textContent = open ? "Hide address" : "Advanced";
+  });
 
   settings.addEventListener("submit", (event) => {
     event.preventDefault();
-    store(LS.base, baseInput.value.trim() || DEFAULT_BASE);
-    store(LS.key, keyInput.value.trim());
+    store(LS.base, normalizeBase(baseInput.value));
+    store(LS.key, cleanSecret(keyInput.value));
     store(LS.model, normalizeModel(modelInput.value));
-    modelInput.value = llmModel();
-    store(LS.gh, root.querySelector("#dev-gh").value.trim());
+    store(LS.gh, cleanSecret(ghInput.value));
     fillSettings();
     setStatus("Saved on this phone. Checking the keys…");
     testKeys();
@@ -588,16 +650,24 @@ function install() {
     go.disabled = true;
     const list = root.querySelector("#dev-keytest");
     list.innerHTML = "";
-    const add = (ok, text) => {
+    const add = (ok, text, detail) => {
       const li = document.createElement("li");
       li.className = ok ? "ok" : "bad";
-      li.textContent = (ok ? "✓ " : "✗ ") + text;
+      const line = document.createElement("div");
+      line.textContent = (ok ? "✓ " : "✗ ") + text;
+      li.appendChild(line);
+      if (!ok && detail) {
+        const small = document.createElement("div");
+        small.className = "err-detail";
+        small.textContent = detail;
+        li.appendChild(small);
+      }
       list.appendChild(li);
     };
     try {
-      const key = (settings.hidden ? load(LS.key) : keyInput.value).trim();
-      const token = (settings.hidden ? load(LS.gh) : root.querySelector("#dev-gh").value).trim();
-      const base = (settings.hidden ? llmBase() : baseInput.value.trim() || DEFAULT_BASE);
+      const key = cleanSecret(settings.hidden ? load(LS.key) : keyInput.value);
+      const token = cleanSecret(settings.hidden ? load(LS.gh) : ghInput.value);
+      const base = normalizeBase(settings.hidden ? load(LS.base) : baseInput.value);
       const model = normalizeModel(settings.hidden ? llmModel() : modelInput.value);
       let aiDetail = "";
       if (!settings.hidden) {
@@ -618,7 +688,7 @@ function install() {
         } catch (err) {
           const { plain } = explain(err);
           aiDetail = detailLine(err);
-          add(false, "AI: " + plain);
+          add(false, "AI: " + plain, aiDetail);
         }
       }
       let ghDetail = "";
@@ -636,7 +706,7 @@ function install() {
         } catch (err) {
           const { plain } = explain(err);
           ghDetail = detailLine(err);
-          add(false, "GitHub: " + plain);
+          add(false, "GitHub: " + plain, ghDetail);
         }
       }
       const bits = [...list.querySelectorAll("li")].map((li) => li.textContent);
@@ -754,6 +824,7 @@ function install() {
   }
 
   llmModel();
+  llmBase();
 }
 
 install();

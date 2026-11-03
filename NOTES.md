@@ -12,6 +12,8 @@ Flight is mode `flight`. Docking, the chart, hyperspace, the title, and death ar
 
 Playable first voyage. Seven linked systems, eight commodities with per-system prices, dockside trade, refuel, and repair. Mission boards offer a bounty, a delivery, and an errand. Pirates patrol until you get close, then chase and apologize while shooting. Touch stick, Stop, Fire, Land/Jump, and Chart, plus WASD, Space, E, and M. Portrait and landscape, safe areas, no page scroll or zoom. Progress saves locally. Procedural graphics only, no image assets required for play. `window.WEIRD` is the live state, for debugging.
 
+The dev panel (`?dev=1` only) has no file picker. It sends the request plus a one-line guide of files, asks for JSON naming at most three files, then edits those files and saves them to `main`. Status text under the box says what it is doing. The gear panel stores keys on the device and can test them. Empty AI address and model prefill to Gemini (`generativelanguage.googleapis.com/v1beta/openai`, `gemini-2.5-flash`).
+
 ## Next 3 tasks
 
 1. Yard upgrades: a larger hold, a second weapon, and a faster hull called Perhaps.
@@ -27,3 +29,4 @@ Playable first voyage. Seven linked systems, eight commodities with per-system p
 - Cap `devicePixelRatio` at 2. Clamp dt. Batch stars and bolts. Bake sprites and glows instead of using shadowBlur each frame.
 - Original names and copy only. Do not import anyone else's ships, systems, or text.
 - Dev-bot secrets (LLM base URL, LLM API key, model, GitHub token) stay in `localStorage` on the device. Never commit them.
+- The dev bot does not send the whole repo. It picks at most three files from the short guide in `devbot.js`, then sends only those.

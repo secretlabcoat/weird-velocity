@@ -1,5 +1,5 @@
 // World drawing. Stars and bolts are batched; planets are cached blits.
-// module rev sw-1
+// module rev sw-2
 
 import { WORLD, reduceMotion, rng, hash } from "./util.js";
 import { system } from "./data/galaxy.js";

@@ -1,4 +1,5 @@
 // World drawing. Stars and bolts are batched; planets are cached blits.
+// module rev sw-1
 
 import { WORLD, reduceMotion, rng, hash } from "./util.js";
 import { system } from "./data/galaxy.js";
@@ -151,21 +152,28 @@ function drawShip(ctx, x, y, angle, opts) {
 }
 
 function drawBolts(ctx, bolts, cam, friendly) {
-  ctx.beginPath();
-  ctx.strokeStyle = friendly ? "#ff69b4" : "#ff5555";
-  ctx.lineWidth = 2;
-  ctx.lineCap = "round";
-  let any = false;
+  const groups = new Map();
   for (const bolt of bolts) {
     if (bolt.friendly !== friendly) continue;
-    any = true;
-    const len = Math.hypot(bolt.vx, bolt.vy) || 1;
-    const x = bolt.x - cam.x;
-    const y = bolt.y - cam.y;
-    ctx.moveTo(x, y);
-    ctx.lineTo(x - (bolt.vx / len) * 12, y - (bolt.vy / len) * 12);
+    const color = bolt.color || (friendly ? "#ff69b4" : "#ff5555");
+    let list = groups.get(color);
+    if (!list) groups.set(color, list = []);
+    list.push(bolt);
   }
-  if (any) ctx.stroke();
+  for (const [color, list] of groups) {
+    ctx.beginPath();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.lineCap = "round";
+    for (const bolt of list) {
+      const len = Math.hypot(bolt.vx, bolt.vy) || 1;
+      const x = bolt.x - cam.x;
+      const y = bolt.y - cam.y;
+      ctx.moveTo(x, y);
+      ctx.lineTo(x - (bolt.vx / len) * 12, y - (bolt.vy / len) * 12);
+    }
+    ctx.stroke();
+  }
 }
 
 function drawLabel(ctx, text, x, y) {

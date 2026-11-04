@@ -26,6 +26,7 @@ function swept(bolt, target) {
 export function tryFire(game, owner, friendly) {
   if (!owner.alive || owner.cool > 0) return false;
   owner.cool = friendly ? 0.22 : (owner.solo ? 0.7 : 0.92);
+  if (friendly) sfx("laser");
   const fx = Math.sin(owner.angle);
   const fy = -Math.cos(owner.angle);
   const speed = friendly ? 640 : 450;

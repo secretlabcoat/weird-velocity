@@ -114,6 +114,13 @@ const text = {
     appeal: "File an appeal",
   },
 
+  debris: {
+    scrap: "Jagged Scrap",
+    asteroid: "Mineral Chunk",
+    salvage: "Drift Cargo",
+    harvested: "Harvested {n} {item}.",
+  },
+
   // Short lines said after an action. The flight HUD does not print this log.
   messages: {
     lowFuel: "Not enough fuel.",

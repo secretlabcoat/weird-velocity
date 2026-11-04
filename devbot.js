@@ -217,6 +217,15 @@ const HINTS = [
 
 const STOP_WORDS = new Set(["the", "and", "for", "make", "with", "that", "this", "from", "into", "please", "them", "your"]);
 
+const BEHAVIOR_ASK = /\b(spawn|spawning|attack|attacks|shoot|shooting|harvest|drop|debris|behavior|behaviour|float|destroy|respawn|only one|at a time|when you|when i|able to|keep spawning)\b/i;
+
+export function dataOnlyBehaviorWarning(instruction, paths) {
+  if (!paths || !paths.length) return "";
+  const dataOnly = paths.every((path) => path.startsWith("data/") || path === "TEXT.md");
+  if (!dataOnly || !BEHAVIOR_ASK.test(instruction || "")) return "";
+  return "Saved, but this may only be a text/data change; the feature may need a bigger update.";
+}
+
 export function suggestFiles(request) {
   const files = [];
   for (const hint of HINTS) {
@@ -1003,9 +1012,10 @@ function install() {
         setStatus("The AI didn't change anything. Nothing was saved.");
         return;
       }
-      const published = await publishPages(token, lastSha);
+      const warning = dataOnlyBehaviorWarning(instruction, saved);
+      const published = await publishPages(token, lastSha, warning);
       if (published === "errored") return;
-      showLive(plan, saved);
+      showLive(plan, saved, warning);
     } catch (err) {
       showError(err);
     } finally {
@@ -1013,8 +1023,8 @@ function install() {
     }
   }
 
-  async function publishPages(token, sha) {
-    setStatus("Saved ✓ — publishing…", sha.slice(0, 7));
+  async function publishPages(token, sha, warning) {
+    setStatus(warning || "Saved ✓ — publishing…", sha.slice(0, 7));
     const deadline = Date.now() + 4 * 60 * 1000;
     while (Date.now() < deadline) {
       let build;
@@ -1040,7 +1050,7 @@ function install() {
     throw err;
   }
 
-  function showLive(plan, saved) {
+  function showLive(plan, saved, warning) {
     statusMain.className = "ok";
     statusMain.textContent = "Live now! ";
     const button = document.createElement("button");
@@ -1050,7 +1060,7 @@ function install() {
     button.addEventListener("click", () => location.reload());
     statusMain.appendChild(button);
     statusDetail.hidden = false;
-    statusDetail.textContent = [plan.summary, plan.skipped.join(" "), saved.join(", ")].filter(Boolean).join("\n");
+    statusDetail.textContent = [warning, plan.summary, plan.skipped.join(" "), saved.join(", ")].filter(Boolean).join("\n");
   }
 
   llmModel();

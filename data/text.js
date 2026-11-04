@@ -182,6 +182,7 @@ const text = {
     { id: "echoes", name: "Data Echoes", about: "Recordings of routes, storms, and conversations no one finished." },
     { id: "moss", name: "Agricultural Moss", about: "A damp crop that travels well and feeds station gardens." },
     { id: "numbers", name: "Telemetry Data", about: "Warm figures from hulls, storms, and census buoys." },
+    { id: "ore", name: "Raw Ore", about: "Mineral broken off drifting rock. Stations buy it." },
   ],
 
   // Names shouted in a fight, and the groups the chart mentions.

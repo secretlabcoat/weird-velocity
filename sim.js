@@ -80,6 +80,59 @@ function place(game, rand, prefer) {
   return { x: 520 + rand() * 400, y: 520 + rand() * 400 };
 }
 
+const DEFAULT_HOSTILES = 4;
+
+function hostileCap(game) {
+  const n = system(game.systemId).maxHostiles;
+  return typeof n === "number" && n >= 0 ? n : DEFAULT_HOSTILES;
+}
+
+function spawnHostile(game, rand, index, solo) {
+  const spot = place(game, rand, 1000);
+  game.pirates.push(makePirate(game, spot.x, spot.y, solo, rand, index));
+}
+
+function fillHostiles(game, rand) {
+  const cap = hostileCap(game);
+  for (let i = game.pirates.length; i < cap; i++) {
+    spawnHostile(game, rand, i, i === 0 && cap > 1);
+  }
+}
+
+const DEBRIS = [
+  { type: "mineral", kind: 0, shootable: true, hp: 44, yield: 2 },
+  { type: "scrap", kind: 1, shootable: true, hp: 22, yield: 1 },
+  { type: "cargo", kind: 2, shootable: false, hp: 0, yield: 0 },
+];
+
+function debrisName(type) {
+  if (type === "scrap") return copy.debris.scrap;
+  if (type === "cargo") return copy.debris.salvage;
+  return copy.debris.asteroid;
+}
+
+function spawnDebris(game, rand) {
+  for (let i = 0; i < 6; i++) {
+    const spec = DEBRIS[i % DEBRIS.length];
+    const spot = place(game, rand, 0);
+    const radius = spec.type === "cargo" ? 18 : 16 + rand() * 12;
+    game.rocks.push({
+      x: spot.x, y: spot.y, radius,
+      vx: (rand() - 0.5) * 18,
+      vy: (rand() - 0.5) * 18,
+      spin: rand() * 6.28,
+      spinRate: (rand() - 0.5) * 0.5,
+      kind: spec.kind,
+      type: spec.type,
+      name: debrisName(spec.type),
+      shootable: spec.shootable,
+      hp: spec.hp,
+      yield: spec.yield,
+      alive: true,
+    });
+  }
+}
+
 function makePirate(game, x, y, solo, rand, index) {
   const name = solo
     ? SOLO_NAMES[hash(game.systemId, "solo", index) % SOLO_NAMES.length]
@@ -126,23 +179,9 @@ export function populate(game) {
   game.rocks = [];
   game.pirates = [];
   const rand = rng(hash(sys.id, "scatter"));
-  for (let i = 0; i < 5; i++) {
-    const spot = place(game, rand, 0);
-    const radius = 16 + rand() * 16;
-    game.rocks.push({
-      x: spot.x, y: spot.y, radius,
-      vx: (rand() - 0.5) * 22,
-      vy: (rand() - 0.5) * 22,
-      spin: rand() * 6.28,
-      spinRate: (rand() - 0.5) * 0.7,
-      kind: Math.floor(rand() * 4),
-    });
-  }
+  spawnDebris(game, rand);
   if (game.mode === "title") return;
-  for (let i = 0; i < 4; i++) {
-    const spot = place(game, rand, 1000);
-    game.pirates.push(makePirate(game, spot.x, spot.y, i === 0, rand, i));
-  }
+  fillHostiles(game, rand);
 }
 
 function driftRocks(game, dt) {
@@ -281,13 +320,7 @@ export function launch(game) {
   game.systemId = found.system.id;
   game.lastDockId = found.body.id;
   game.mode = "flight";
-  if (!game.pirates.length) {
-    const rand = rng(hash(game.systemId, "late"));
-    for (let i = 0; i < 4; i++) {
-      const spot = place(game, rand, 900);
-      game.pirates.push(makePirate(game, spot.x, spot.y, i === 0, rand, i));
-    }
-  }
+  if (!game.pirates.length) fillHostiles(game, rng(hash(game.systemId, "late")));
   game.snap = true;
   game.uiRev++;
   updateNear(game);
@@ -549,13 +582,14 @@ export function step(game, input, dt) {
 
   const before = game.pirates.length;
   game.pirates = game.pirates.filter((p) => p.alive);
-  if (game.pirates.length < 4) {
+  game.rocks = game.rocks.filter((rock) => rock.alive !== false);
+  const cap = hostileCap(game);
+  if (game.pirates.length < cap) {
     if (game.pirates.length < before) game.respawnIn = Math.min(game.respawnIn, 16);
     game.respawnIn -= dt;
     if (game.respawnIn <= 0) {
       const rand = rng(hash(game.systemId, game.time, game.stats.kills));
-      const spot = place(game, rand, 980);
-      game.pirates.push(makePirate(game, spot.x, spot.y, false, rand, game.stats.kills + 3));
+      spawnHostile(game, rand, game.stats.kills + 3, false);
       game.respawnIn = 18;
     }
   } else {

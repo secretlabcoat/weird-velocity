@@ -7,6 +7,7 @@ import {
   parseEditReply,
   applyEditPlan,
   fetchChat,
+  dataOnlyBehaviorWarning,
 } from "./devbot.js";
 
 const request = "make the lasers red";
@@ -101,5 +102,17 @@ try {
   globalThis.fetch = originalFetch;
   delete globalThis.__DEVBOT_PAUSE;
 }
+
+const warn = "Saved, but this may only be a text/data change; the feature may need a bigger update.";
+assert.equal(
+  dataOnlyBehaviorWarning("Have there only be one ship that attacks you", ["data/galaxy.js"]),
+  warn,
+);
+assert.equal(
+  dataOnlyBehaviorWarning("different types of space debris you can shoot", ["data/text.js"]),
+  warn,
+);
+assert.equal(dataOnlyBehaviorWarning("rename the station", ["data/text.js"]), "");
+assert.equal(dataOnlyBehaviorWarning("make the lasers red", ["render.js"]), "");
 
 console.log("devbot edit test ok");

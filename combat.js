@@ -1,8 +1,10 @@
 // Bolts, shields, armor, and the Rude Chorus falling apart.
 
 import { GOODS } from "./data/galaxy.js";
+import copy, { fill } from "./data/text.js";
 import { burst, floater } from "./fx.js";
 import { onPirateKilled } from "./missions.js";
+import { say } from "./state.js";
 import { sfx } from "./audio.js";
 import { cargoUsed } from "./trade.js";
 
@@ -95,6 +97,40 @@ function damagePirate(game, pirate, dmg) {
   onPirateKilled(game);
 }
 
+function breakDebris(game, rock) {
+  rock.alive = false;
+  burst(game, rock.x, rock.y, rock.type === "scrap" ? "#d5dde4" : "#d7e27a", 8, 90);
+  sfx("boom");
+  const good = GOODS.find((item) => item.id === "ore");
+  const room = Math.max(0, game.holdMax - cargoUsed(game));
+  const n = Math.min(rock.yield || 0, room);
+  if (!good || n <= 0) {
+    floater(game, rock.x, rock.y, copy.messages.holdFull, "#efe9dc");
+    say(game, copy.messages.holdFull);
+    return;
+  }
+  game.cargo[good.id] = (game.cargo[good.id] || 0) + n;
+  const line = fill(copy.debris.harvested, { n, item: good.name });
+  floater(game, rock.x, rock.y, line, "#d7e27a");
+  say(game, line);
+}
+
+function hitDebris(game, bolt) {
+  for (const rock of game.rocks) {
+    if (rock.alive === false) continue;
+    if (!swept(bolt, rock)) continue;
+    if (rock.shootable) {
+      rock.hp -= bolt.dmg;
+      burst(game, bolt.x, bolt.y, "#efe9dc", 3, 40);
+      if (rock.hp <= 0) breakDebris(game, rock);
+    } else {
+      burst(game, bolt.x, bolt.y, "#c4b49a", 3, 30);
+    }
+    return true;
+  }
+  return false;
+}
+
 function hitBody(game, bolt) {
   for (const body of game.bodies) {
     if (Math.hypot(bolt.x - body.x, bolt.y - body.y) < body.r) return true;
@@ -115,6 +151,7 @@ export function updateBolts(game, dt) {
       burst(game, bolt.x, bolt.y, "#efe9dc", 4, 60);
       continue;
     }
+    if (hitDebris(game, bolt)) continue;
     if (bolt.friendly) {
       let hit = null;
       for (const pirate of game.pirates) {

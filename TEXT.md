@@ -262,6 +262,17 @@ Probably
 - Data Echoes: Recordings of routes, storms, and conversations no one finished.
 - Agricultural Moss: A damp crop that travels well and feeds station gardens.
 - Telemetry Data: Warm figures from hulls, storms, and census buoys.
+- Raw Ore: Mineral broken off drifting rock. Stations buy it.
+
+# Debris
+
+Three kinds drift in every system.
+
+- Jagged Scrap: can be shot apart. Drops 1 Raw Ore.
+- Mineral Chunk: can be shot apart. Drops 2 Raw Ore.
+- Drift Cargo: drifts and stops shots. It does not break or drop cargo.
+
+Harvest line: Harvested {n} {item}.
 
 # Factions
 

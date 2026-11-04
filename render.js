@@ -316,14 +316,17 @@ export function draw(game, ctx, dt) {
   }
 
   for (const rock of game.rocks) {
-    const sprite = rockSprite(rock.kind);
+    if (rock.alive === false) continue;
     const x = rock.x - cam.x;
     const y = rock.y - cam.y;
+    if (x < -80 || y < -80 || x > view.w + 80 || y > view.h + 80) continue;
+    const sprite = rockSprite(rock.kind);
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(rock.spin);
     ctx.drawImage(sprite, -sprite.logical / 2, -sprite.logical / 2, sprite.logical, sprite.logical);
     ctx.restore();
+    if (rock.name) drawLabel(ctx, rock.name, x, y + rock.radius + 10);
   }
 
   const player = game.player;
@@ -452,6 +455,11 @@ export function drawMinimap(game, ctx) {
   }
   ctx.fillStyle = "#ffb15a";
   for (const beacon of game.beacons) ctx.fillRect(X(beacon.x) - 1.4, Y(beacon.y) - 1.4, 2.8, 2.8);
+  ctx.fillStyle = "#c4b49a";
+  for (const rock of game.rocks) {
+    if (rock.alive === false) continue;
+    ctx.fillRect(X(rock.x) - 1, Y(rock.y) - 1, 2, 2);
+  }
   ctx.fillStyle = "#ff6b8a";
   for (const pirate of game.pirates) {
     if (pirate.alive) ctx.fillRect(X(pirate.x) - 1.2, Y(pirate.y) - 1.2, 2.4, 2.4);

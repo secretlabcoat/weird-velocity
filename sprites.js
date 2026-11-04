@@ -46,14 +46,29 @@ function bakeRock(kind) {
   canvas.logical = logical;
   const g = canvas.getContext("2d");
   g.scale(2, 2);
-  const rand = rng(hash("rock", kind));
   g.translate(36, 36);
-  g.fillStyle = kind % 2 ? "#8d7a68" : "#6e6258";
+  if (kind === 2) {
+    g.fillStyle = "#c4b49a";
+    g.fillRect(-16, -12, 32, 24);
+    g.strokeStyle = "#efe9dc";
+    g.lineWidth = 2;
+    g.strokeRect(-16, -12, 32, 24);
+    g.beginPath();
+    g.moveTo(-16, 0);
+    g.lineTo(16, 0);
+    g.moveTo(0, -12);
+    g.lineTo(0, 12);
+    g.stroke();
+    return canvas;
+  }
+  const scrap = kind === 1;
+  const rand = rng(hash("rock", kind));
+  g.fillStyle = scrap ? "#5c6770" : "#8a7a4e";
   g.beginPath();
-  const n = 7;
+  const n = scrap ? 5 : 8;
   for (let i = 0; i < n; i++) {
     const a = (i / n) * Math.PI * 2;
-    const rad = 18 + rand() * 10;
+    const rad = (scrap ? 12 : 16) + rand() * (scrap ? 14 : 8);
     const x = Math.cos(a) * rad;
     const y = Math.sin(a) * rad;
     if (i === 0) g.moveTo(x, y);
@@ -61,10 +76,18 @@ function bakeRock(kind) {
   }
   g.closePath();
   g.fill();
-  g.fillStyle = "rgba(0,0,0,0.25)";
-  g.beginPath();
-  g.arc(-4, -2, 6, 0, Math.PI * 2);
-  g.fill();
+  g.lineWidth = 2;
+  if (scrap) {
+    g.strokeStyle = "#d5dde4";
+    g.stroke();
+  } else {
+    g.strokeStyle = "#d7e27a";
+    g.beginPath();
+    g.moveTo(-10, 8);
+    g.lineTo(0, 0);
+    g.lineTo(12, -10);
+    g.stroke();
+  }
   return canvas;
 }
 

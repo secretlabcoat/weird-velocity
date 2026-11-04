@@ -5,7 +5,7 @@ import { WORLD, reduceMotion, rng, hash } from "./util.js";
 import { system } from "./data/galaxy.js";
 import copy, { fill } from "./data/text.js";
 import { compassTarget } from "./missions.js";
-import { getAtlas, bodySprite, rockSprite, nebulaSprite } from "./sprites.js";
+import { getAtlas, bodySprite, rockSprite, nebulaSprite, artImage } from "./sprites.js";
 
 let starLayers = null;
 let vignette = null;
@@ -95,6 +95,40 @@ function drawShip(ctx, x, y, angle, opts) {
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(angle);
+  const art = artImage(opts.kind === "pirate" ? "pirate" : "player");
+  if (art) {
+    if (opts.thrust > 0.12) {
+      const len = 8 + opts.thrust * 16 + Math.sin(opts.time * 42) * 3;
+      ctx.globalAlpha = 0.85;
+      ctx.drawImage(atlas, 128, 0, 64, 64, -16, 6, 32, 28 + len);
+      ctx.globalAlpha = opts.alpha ?? 1;
+      ctx.fillStyle = "#ffb15a";
+      ctx.beginPath();
+      ctx.moveTo(-3.5, 12);
+      ctx.lineTo(0, 12 + len);
+      ctx.lineTo(3.5, 12);
+      ctx.fill();
+    }
+    ctx.globalAlpha = opts.alpha ?? 1;
+    ctx.drawImage(art, -28, -28, 56, 56);
+    if (opts.shield > 0.02) {
+      ctx.strokeStyle = opts.kind === "pirate"
+        ? `rgba(255,143,184,${0.3 + opts.shield * 0.5})`
+        : `rgba(126,224,214,${0.3 + opts.shield * 0.55})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, 22, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * opts.shield);
+      ctx.stroke();
+    }
+    if (opts.flash > 0) {
+      ctx.fillStyle = `rgba(255,255,255,${Math.min(0.8, opts.flash * 4)})`;
+      ctx.beginPath();
+      ctx.arc(0, 0, 10, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+    return;
+  }
   ctx.globalAlpha = 0.9 * (opts.alpha ?? 1);
   const cell = opts.kind === "pirate" ? 64 : 0;
   ctx.drawImage(atlas, cell, 0, 64, 64, -42, -42, 84, 84);

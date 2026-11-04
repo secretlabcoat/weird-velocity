@@ -2,6 +2,33 @@
 
 import { hash, rng } from "./util.js";
 
+const artCache = {};
+const artNames = [
+  "player",
+  "pirate",
+  "station",
+  "planet_banded",
+  "planet_grove",
+  "planet_bow",
+  "planet_plaque",
+  "planet_census",
+  "planet_note",
+  "planet_envelope",
+  "debris_mineral",
+  "debris_scrap"
+];
+for (const name of artNames) {
+  const img = new Image();
+  img.src = new URL(`./assets/${name}.png`, import.meta.url).href;
+  artCache[name] = img;
+}
+
+export function artImage(name) {
+  const img = artCache[name];
+  if (img && img.complete && img.naturalWidth > 0) return img;
+  return null;
+}
+
 let atlas = null;
 const bodies = new Map();
 const rocks = [];
@@ -91,10 +118,30 @@ function bakeRock(kind) {
   return canvas;
 }
 
+const rockArtCache = {};
+const bodyArtCache = new Map();
+
 export function rockSprite(kind) {
+  const artName = kind === 0 ? "debris_mineral" : kind === 1 ? "debris_scrap" : null;
+  if (artName) {
+    const img = artImage(artName);
+    if (img) {
+      if (!rockArtCache[kind]) {
+        const c = document.createElement("canvas");
+        c.width = 144;
+        c.height = 144;
+        c.logical = 72;
+        const g = c.getContext("2d");
+        g.drawImage(img, 0, 0, 144, 144);
+        rockArtCache[kind] = c;
+      }
+      return rockArtCache[kind];
+    }
+  }
   if (!rocks[kind]) rocks[kind] = bakeRock(kind);
   return rocks[kind];
 }
+
 
 function sphere(g, body, cx, cy, r) {
   const grd = g.createRadialGradient(cx - r * 0.35, cy - r * 0.38, r * 0.15, cx, cy, r);
@@ -278,6 +325,28 @@ function bakeStation(body) {
 }
 
 export function bodySprite(body) {
+  const artName = body.kind === "station" ? "station" : "planet_" + body.look;
+  const img = artImage(artName);
+  if (img) {
+    if (!bodyArtCache.has(body.id)) {
+      const c = document.createElement("canvas");
+      let logical;
+      if (body.kind === "station") {
+        logical = Math.ceil(body.r * 2 + 28);
+      } else {
+        logical = Math.ceil(body.r * 2 + (body.ring ? 68 : 16));
+      }
+      c.width = logical * 2;
+      c.height = logical * 2;
+      c.logical = logical;
+      const g = c.getContext("2d");
+      const size = body.kind === "station" || body.ring ? (logical - 4) * 2 : body.r * 4;
+      const offset = (c.width - size) / 2;
+      g.drawImage(img, offset, offset, size, size);
+      bodyArtCache.set(body.id, c);
+    }
+    return bodyArtCache.get(body.id);
+  }
   let sprite = bodies.get(body.id);
   if (!sprite) {
     sprite = body.kind === "station" ? bakeStation(body) : bakePlanet(body);

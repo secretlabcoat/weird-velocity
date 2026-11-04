@@ -44,6 +44,7 @@ export const SYSTEMS = [
       { to: "orchard", x: 3280, y: 760 },
       { to: "courtesy", x: 700, y: 900 },
     ],
+    attacks: 1,
   },
   {
     id: "orchard",

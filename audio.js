@@ -27,6 +27,27 @@ const PRESETS = {
   coin: [660, 0.08, "sine", 0.04],
 };
 
+export function primeAudio() {
+  unlockAudio();
+  if (!ctx) return;
+  try {
+    const buffer = ctx.createBuffer(1, 1, 22050);
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    src.connect(ctx.destination);
+    src.start();
+  } catch { /* autoplay */ }
+  if (ctx.state !== "running") ctx.resume().catch(() => {});
+}
+
+export function chime() {
+  unlockAudio();
+  const play = () => sfx("ui");
+  if (!ctx) return;
+  if (ctx.state === "running") play();
+  else ctx.resume().then(play).catch(() => {});
+}
+
 export function sfx(name) {
   if (muted || !ctx || ctx.state !== "running") return;
   const preset = PRESETS[name];

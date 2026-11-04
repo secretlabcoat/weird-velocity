@@ -1,6 +1,8 @@
 // In-game editor. Loaded only from index.html when the URL has ?dev=1.
 // The LLM key and GitHub token live in localStorage on this device, never in the repo.
 
+import { chime, primeAudio } from "./audio.js";
+
 const REPO = "secretlabcoat/weird-velocity";
 const DEFAULT_BASE = "https://generativelanguage.googleapis.com/v1beta/openai";
 const DEFAULT_MODEL = "gemini-flash-latest";
@@ -614,6 +616,31 @@ function install() {
     #devbot button.grow { flex: 1; }
     #devbot button:disabled { opacity: 0.45; }
     #devbot button.on { background: #ffb15a; color: #1a1208; }
+    #dev-log {
+      list-style: none;
+      margin: 0;
+      padding: 8px 10px 4px;
+      max-height: 148px;
+      overflow: auto;
+      font-size: 14px;
+      line-height: 1.35;
+    }
+    #dev-log li { margin: 0 0 3px; color: #d9d3c7; }
+    #dev-log li.latest { color: #efe9dc; }
+    #dev-log li.ok { color: #b6f2a2; }
+    #dev-log li.bad { color: #ffb4a8; }
+    #dev-reload {
+      display: block;
+      width: calc(100% - 16px);
+      margin: 8px 8px 0;
+      min-height: 52px;
+      white-space: normal;
+      text-align: left;
+      background: #1f6b38;
+      color: #e9ffe4;
+      border: 1px solid #b6f2a2;
+      font-weight: 600;
+    }
     #dev-status {
       flex-shrink: 0;
       margin: 0;
@@ -647,6 +674,8 @@ function install() {
   const root = document.createElement("div");
   root.id = "devbot";
   root.innerHTML = `
+    <button type="button" id="dev-reload" hidden></button>
+    <ol id="dev-log" hidden></ol>
     <div id="dev-main">
       <div id="dev-compose">
         <textarea id="dev-text" placeholder="Tell the bot what to change…" autocomplete="off" autocapitalize="sentences"></textarea>
@@ -689,6 +718,8 @@ function install() {
 
   const statusMain = root.querySelector("#dev-status-main");
   const statusDetail = root.querySelector("#dev-status-detail");
+  const logList = root.querySelector("#dev-log");
+  const reloadBtn = root.querySelector("#dev-reload");
   const compose = root.querySelector("#dev-compose");
   const settings = root.querySelector("#dev-settings");
   const go = root.querySelector("#dev-go");
@@ -696,13 +727,44 @@ function install() {
   const keyInput = root.querySelector("#dev-key");
   const baseInput = root.querySelector("#dev-base");
   const modelInput = root.querySelector("#dev-model");
-  reportStatus = (text, detail) => setStatus(text, detail || "");
+  let working = false;
+  reportStatus = (text, detail) => {
+    if (!logList.hidden) logStep(text);
+    else setStatus(text, detail || "");
+  };
 
   function setStatus(main, detail, kind) {
     statusMain.className = kind || "";
     statusMain.textContent = main;
     statusDetail.hidden = !detail;
     statusDetail.textContent = detail || "";
+  }
+
+  function oneLine(text) {
+    return String(text || "").replace(/\s+/g, " ").trim().slice(0, 220);
+  }
+
+  function logStep(text, kind) {
+    logList.hidden = false;
+    for (const item of logList.querySelectorAll(".latest")) item.classList.remove("latest");
+    const li = document.createElement("li");
+    li.className = ["latest", kind || ""].filter(Boolean).join(" ");
+    li.textContent = text;
+    logList.appendChild(li);
+    logList.scrollTop = logList.scrollHeight;
+    setStatus(text, "", kind || "");
+  }
+
+  function clearLog() {
+    logList.innerHTML = "";
+    logList.hidden = false;
+    reloadBtn.hidden = true;
+    reloadBtn.textContent = "";
+  }
+
+  function noteOutcome(saved) {
+    if (saved && saved.length) logStep("Changed: " + saved.join(", ") + ".", "bad");
+    else logStep("Nothing was changed.", "bad");
   }
 
   function showDone(files, url) {
@@ -720,10 +782,13 @@ function install() {
     statusDetail.textContent = files.join(", ");
   }
 
-  function showError(err) {
+  function showError(err, saved) {
     const { plain } = explain(err);
-    setStatus(plain, detailLine(err), "bad");
-  }
+    logStep(plain, "bad");
+    const detail = detailLine(err);
+    if (detail && detail !== plain) logStep(detail);
+  noteOutcome(saved);
+}
 
   const ghInput = root.querySelector("#dev-gh");
 
@@ -772,9 +837,13 @@ function install() {
   });
   root.addEventListener("focusout", () => {
     setTimeout(() => {
+      if (working) {
+        pinDevbot(true);
+        return;
+      }
       const active = document.activeElement;
       const stillTyping = root.contains(active) && active.matches && active.matches("input, textarea");
-      if (!stillTyping && settings.hidden) pinDevbot(false);
+      if (!stillTyping && settings.hidden && logList.hidden) pinDevbot(false);
     }, 80);
   });
   if (window.visualViewport) {
@@ -915,21 +984,30 @@ function install() {
   async function runEdit() {
     const instruction = root.querySelector("#dev-text").value.trim();
     if (!instruction) {
-      setStatus("Write what you want changed first.", "", "bad");
+      clearLog();
+      logStep("Write what you want changed first.", "bad");
+      noteOutcome([]);
       return;
     }
+    working = true;
+    pinDevbot(true);
+    root.querySelector("#dev-text").blur();
     go.disabled = true;
-    setStatus("Received ✓ — working on it…");
+    clearLog();
+    primeAudio();
+    logStep('Received: "' + instruction + '"');
+    const saved = [];
     try {
-      await new Promise((resolve) => setTimeout(resolve, 400));
       if (!load(LS.key).trim() || !load(LS.gh).trim()) {
-        setStatus("Add your AI key and GitHub token with the gear first.", "", "bad");
+        logStep("Add your AI key and GitHub token with the gear first.", "bad");
+        noteOutcome(saved);
         return;
       }
       const token = cleanSecret(load(LS.gh));
-      setStatus("Picking which file to change…");
+      logStep("Reading the game files…");
       let paths = suggestFiles(instruction);
       if (!paths.length) {
+        logStep("Picking which file to change…");
         const picked = await fetchChat([
           {
             role: "system",
@@ -942,8 +1020,6 @@ function install() {
         ], 512, true);
         paths = parsePick(picked.text);
       }
-
-      setStatus("Asking AI for the change…");
       const originals = [];
       for (const path of paths) {
         const got = await ghJson(contentsUrl(path) + "?ref=main", token);
@@ -954,10 +1030,11 @@ function install() {
         const snippet = snippetFor(file.text, words);
         return `FILE ${file.path}\n${snippet || "(no matching lines)"}`;
       }).join("\n\n");
+      logStep("Asking the AI…");
       const reply = await fetchChat([
         {
           role: "system",
-          content: "Return ONLY JSON: {\"edits\":[{\"path\":\"file.js\",\"find\":\"exact existing text\",\"replace\":\"new text\"}],\"summary\":\"...\"}. Copy find exactly from the snippets, with no line numbers. Change as little as possible. Do not rewrite the whole file.",
+          content: "Return ONLY JSON: {\"edits\":[{\"path\":\"file.js\",\"find\":\"exact existing text\",\"replace\":\"new text\"}],\"summary\":\"one plain sentence of what changed\"}. summary is one sentence for the player, with no code. Copy find exactly from the snippets, with no line numbers. Change as little as possible. Do not rewrite the whole file.",
         },
         {
           role: "user",
@@ -983,12 +1060,15 @@ function install() {
       }
       if (!ready.length) {
         const note = plan.skipped.join(" ") || "The AI didn't change anything. Nothing was saved.";
-        setStatus(note, String(reply.text || "").slice(0, 200), "bad");
+        logStep(note, "bad");
+        noteOutcome(saved);
         return;
       }
+      const summary = oneLine(plan.summary) || "It did not describe the change.";
+      logStep("AI plans to change: " + ready.map((edit) => edit.path).join(", ") + " — " + summary);
+      if (plan.skipped.length) logStep(plan.skipped.join(" "));
 
-      setStatus("Saving to GitHub…");
-      const saved = [];
+      logStep("Saving the change…");
       let lastSha = "";
       for (const edit of ready) {
         const put = await ghJson(contentsUrl(edit.path), token, {
@@ -1005,26 +1085,28 @@ function install() {
         if (put.commit?.sha) lastSha = put.commit.sha;
       }
       if (!lastSha) {
-        setStatus("Saved, but the commit id was missing. Reload in a minute.", "", "bad");
-        return;
-      }
-      if (!saved.length) {
-        setStatus("The AI didn't change anything. Nothing was saved.");
+        logStep("Saved, but the commit id was missing. Reload in a minute.", "bad");
+        noteOutcome(saved);
         return;
       }
       const warning = dataOnlyBehaviorWarning(instruction, saved);
-      const published = await publishPages(token, lastSha, warning);
-      if (published === "errored") return;
-      showLive(plan, saved, warning);
+      if (warning) logStep(warning);
+      logStep("Publishing to the live site (about 1–2 min)…");
+      const published = await publishPages(token, lastSha);
+      if (published === "errored") {
+        noteOutcome(saved);
+        return;
+      }
+      showLive(summary, warning);
     } catch (err) {
-      showError(err);
+      showError(err, saved);
     } finally {
+      working = false;
       go.disabled = false;
     }
   }
 
-  async function publishPages(token, sha, warning) {
-    setStatus(warning || "Saved ✓ — publishing…", sha.slice(0, 7));
+  async function publishPages(token, sha) {
     const deadline = Date.now() + 4 * 60 * 1000;
     while (Date.now() < deadline) {
       let build;
@@ -1040,7 +1122,7 @@ function install() {
       if (matches && build.status === "built") return "built";
       if (matches && build.status === "errored") {
         const why = build.error && build.error.message ? build.error.message : "GitHub Pages reported an error.";
-        setStatus("Publishing failed. Try again.", why, "bad");
+        logStep("Publishing failed. " + why, "bad");
         return "errored";
       }
       await sleep(4000);
@@ -1050,17 +1132,17 @@ function install() {
     throw err;
   }
 
-  function showLive(plan, saved, warning) {
-    statusMain.className = "ok";
-    statusMain.textContent = "Live now! ";
-    const button = document.createElement("button");
-    button.type = "button";
-    button.id = "dev-reload";
-    button.textContent = "Tap to see it";
-    button.addEventListener("click", () => location.reload());
-    statusMain.appendChild(button);
-    statusDetail.hidden = false;
-    statusDetail.textContent = [warning, plan.summary, plan.skipped.join(" "), saved.join(", ")].filter(Boolean).join("\n");
+  function showLive(summary, warning) {
+    const sentence = String(summary || "").replace(/[.!?]+$/, "");
+    const label = "Done — your change is live: " + sentence + ". Tap to reload.";
+    reloadBtn.hidden = false;
+    reloadBtn.textContent = label;
+    reloadBtn.onclick = () => location.reload();
+    logStep(label, "ok");
+    if (warning) logStep(warning);
+    try { if (navigator.vibrate) navigator.vibrate([120, 40, 120]); } catch { /* unsupported */ }
+    chime();
+    reloadBtn.scrollIntoView({ block: "nearest" });
   }
 
   llmModel();

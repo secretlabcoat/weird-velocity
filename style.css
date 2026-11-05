@@ -484,3 +484,5 @@ button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 
 #pilotTopName { position: fixed; top: calc(env(safe-area-inset-top) + 8px); left: 50%; transform: translateX(-50%); z-index: 5; font: 600 14px/1.2 var(--sans); color: var(--ink); pointer-events: none; white-space: nowrap; max-width: 40vw; overflow: hidden; text-overflow: ellipsis; }
 #pilotTopName:empty { display: none; }
+
+#overlay.title { background: #05070b url("assets/title.jpg") center top / 100% auto no-repeat; }

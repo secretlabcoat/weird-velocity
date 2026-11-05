@@ -137,6 +137,7 @@ function devHtml(game) {
       <div>Credits: ${game.credits}</div>
     </div>
   </div>`;
+  </div>`;
 }
 
 function jobsHtml(game) {

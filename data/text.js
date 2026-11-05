@@ -30,7 +30,7 @@ const text = {
     kicker: "a pocket cosmos",
     nameLine1: "Weird",
     nameLine2: "Velocity",
-    tagline: "You fly a ship named {ship}. Trade odd cargo. Apologize with lasers.",
+    tagline: "Trade odd cargo. Apologize with lasers.",
     help: [
       "Drag the stick, or use WASD. You keep your drift.",
       "Stop brakes. Fire shoots, and holding it is fine.",

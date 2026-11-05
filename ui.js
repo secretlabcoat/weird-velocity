@@ -22,8 +22,12 @@ function setText(el, value) {
 }
 
 function updatePilotName(game) {
-  const el = document.getElementById("pilotTopName");
-  if (!el) return;
+  let el = document.getElementById("pilotTopName");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "pilotTopName";
+    document.body.appendChild(el);
+  }
   if (game.mode === "title" || !game.player) {
     el.textContent = "";
   } else {
@@ -51,12 +55,7 @@ function applyStaticLabels() {
   if (apple) apple.setAttribute("content", copy.meta.title);
 }
 
-  if (typeof document !== "undefined") applyStaticLabels();
-
-export function updateUI(game) {
-  updatePilotName(game);
-  // existing UI update code can follow here if called
-}
+if (typeof document !== "undefined") applyStaticLabels();
 
 function titleHtml(game) {
   if (game.naming) {
@@ -476,6 +475,7 @@ export function sync(game) {
     banner.hidden = true;
   }
   updateAct(game);
+  updatePilotName(game);
   const key = [game.mode, game.naming ? 1 : 0, game.uiRev, game.dockId, game.dockTab, game.mapFocus, game.navSystem, game.hasSave ? 1 : 0].join("|");
   if (key !== shown) {
     shown = key;

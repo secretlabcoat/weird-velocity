@@ -684,9 +684,8 @@ function install() {
     #devbot[hidden], #dev-show[hidden] { display: none !important; }
     #dev-show {
       position: fixed;
-      top: calc(env(safe-area-inset-top) + 8px);
-      left: 50%;
-      transform: translateX(-50%);
+      bottom: calc(env(safe-area-inset-bottom) + 200px);
+      left: calc(env(safe-area-inset-left) + 12px);
       z-index: 41;
       width: 44px;
       height: 32px;

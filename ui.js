@@ -125,6 +125,20 @@ function blockReason(game, mission) {
   return "";
 }
 
+function devHtml(game) {
+  if (!game || !game.devMode) return "";
+  const hidden = !!game.devHidden;
+  return `<div id="devpanel" class="${hidden ? "dev-hidden" : ""}" style="position:fixed;bottom:0;right:0;z-index:9999;background:rgba(18,20,28,0.95);border-top:1px solid rgba(255,244,220,0.18);border-left:1px solid rgba(255,244,220,0.18);padding:8px;border-top-left-radius:8px;font-family:var(--sans);color:var(--ink);max-width:320px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:${hidden ? "0" : "6px"};">
+      <span style="font-size:12px;font-weight:700;color:var(--amber);letter-spacing:0.05em;">DEV</span>
+      <button type="button" id="devtoggle" data-act="devtoggle">${hidden ? "Show" : "Hide"}</button>
+    </div>
+    <div class="dev-body" style="display:flex;flex-direction:column;gap:4px;font-size:12px;">
+      <div>Credits: ${game.credits}</div>
+    </div>
+  </div>`;
+}
+
 function jobsHtml(game) {
   let html = `<h3>${esc(copy.screens.yours)}</h3>`;
   if (!game.missions.length) html += `<p class="dim">${esc(copy.screens.noActive)}</p>`;

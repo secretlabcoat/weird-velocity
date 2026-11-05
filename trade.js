@@ -7,12 +7,20 @@ import { FUEL_PRICE, REPAIR_PRICE, hash } from "./util.js";
 export function buyPrice(game, systemId, goodId) {
   const good = GOODS.find((g) => g.id === goodId);
   const mod = system(systemId).prices[goodId];
-  const wobble = 0.94 + (hash(goodId, systemId, game.salt) % 13) / 100;
+  const roll = hash(goodId, systemId, game.salt);
+  const wobble = goodId === "squazzex"
+    ? 0.6 + (roll % 101) / 100
+    : 0.94 + (roll % 13) / 100;
   return Math.max(1, Math.round(good.base * mod * wobble));
 }
 
 export function sellPrice(game, systemId, goodId) {
   return Math.max(1, Math.round(buyPrice(game, systemId, goodId) * 0.82));
+}
+
+export function stocked(game, systemId, goodId) {
+  if (goodId !== "squazzex") return true;
+  return hash(goodId + "-stock", systemId, game.salt) % 2 === 0;
 }
 
 export function cargoUsed(game) {

@@ -12,9 +12,9 @@ export function fill(template, vars) {
 const text = {
   // Browser tab and home-screen wording. The installed icon name also lives in manifest.webmanifest.
   meta: {
-    title: "Weird Velocity",
-    shortTitle: "Velocity",
-    description: "Weird Velocity — a pocket space trading game.",
+    title: "Rim Runner",
+    shortTitle: "Rim Runner",
+    description: "Rim Runner — a pocket space trading game.",
   },
 
   // The ship the player flies.
@@ -28,9 +28,10 @@ const text = {
   // Title screen.
   title: {
     kicker: "a pocket cosmos",
-    nameLine1: "Weird",
-    nameLine2: "Velocity",
+    nameLine1: "Rim",
+    nameLine2: "Runner",
     tagline: "Trade odd cargo. Apologize with lasers.",
+    bgImage: "https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?auto=format&fit=crop&w=1600&q=80",
     help: [
       "Drag the stick, or use WASD. You keep your drift.",
       "Stop brakes. Fire shoots, and holding it is fine.",

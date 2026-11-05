@@ -21,6 +21,16 @@ function setText(el, value) {
   if (el && el.textContent !== value) el.textContent = value;
 }
 
+function updatePilotName(game) {
+  const el = document.getElementById("pilotTopName");
+  if (!el) return;
+  if (game.mode === "title" || !game.player) {
+    el.textContent = "";
+  } else {
+    el.textContent = game.pilotName || copy.pilot.name;
+  }
+}
+
 function applyStaticLabels() {
   const shield = document.querySelector(".meter.shield span");
   const armor = document.querySelector(".meter.armor span");
@@ -41,7 +51,12 @@ function applyStaticLabels() {
   if (apple) apple.setAttribute("content", copy.meta.title);
 }
 
-if (typeof document !== "undefined") applyStaticLabels();
+  if (typeof document !== "undefined") applyStaticLabels();
+
+export function updateUI(game) {
+  updatePilotName(game);
+  // existing UI update code can follow here if called
+}
 
 function titleHtml(game) {
   if (game.naming) {

@@ -31,7 +31,6 @@ const text = {
     nameLine1: "Rim",
     nameLine2: "Runner",
     tagline: "Trade odd cargo. Apologize with lasers.",
-    bgImage: "https://images.unsplash.com/photo-1506703719100-a0f3a48c0f86?auto=format&fit=crop&w=1600&q=80",
     help: [
       "Drag the stick, or use WASD. You keep your drift.",
       "Stop brakes. Fire shoots, and holding it is fine.",

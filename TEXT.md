@@ -153,9 +153,15 @@ You fly a ship named Probably. Trade odd cargo. Apologize with lasers.
 
 New voyage. Continue. Erase saved voyage.
 
+Naming screen: Name your voyage. Ship name. Your name. Launch. Back.
+
 # Ship
 
 Probably
+
+# Pilot (default name)
+
+Captain
 
 # HUD
 

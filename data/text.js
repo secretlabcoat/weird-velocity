@@ -21,6 +21,9 @@ const text = {
   ship: {
     name: "Probably",
   },
+  pilot: {
+    name: "Captain",
+  },
 
   // Title screen.
   title: {
@@ -37,6 +40,11 @@ const text = {
     newVoyage: "New voyage",
     continue: "Continue",
     erase: "Erase saved voyage",
+    nameHeading: "Name your voyage",
+    shipLabel: "Ship name",
+    pilotLabel: "Your name",
+    launch: "Launch",
+    back: "Back",
   },
 
   // In-flight top bar, bars, and the buttons under the radar.

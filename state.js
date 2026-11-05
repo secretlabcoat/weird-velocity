@@ -22,6 +22,9 @@ export function createPlayer(x, y, angle) {
 export function createGame() {
   return {
     mode: "title",
+    naming: false,
+    shipName: "",
+    pilotName: "",
     time: 0,
     uiRev: 0,
     dockTab: "trade",

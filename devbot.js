@@ -164,6 +164,22 @@ function looksValid(path, text) {
   return true;
 }
 
+let acornLib = null;
+async function syntaxProblem(path, text) {
+  if (!path.endsWith(".js")) return "";
+  try {
+    if (!acornLib) acornLib = await import("https://esm.sh/acorn@8.12.1");
+  } catch {
+    return "";
+  }
+  try {
+    acornLib.parse(text, { ecmaVersion: "latest", sourceType: "module" });
+    return "";
+  } catch (err) {
+    return String(err && err.message || err);
+  }
+}
+
 function catalogText() {
   return FILE_GUIDE.map(([path, line]) => `${path} — ${line}`).join("\n");
 }
@@ -665,6 +681,24 @@ function install() {
       word-break: break-word;
     }
     #dev-advanced { align-self: flex-start; min-height: 36px; background: transparent; }
+    #devbot[hidden], #dev-show[hidden] { display: none !important; }
+    #dev-show {
+      position: fixed;
+      top: calc(env(safe-area-inset-top) + 8px);
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 41;
+      width: 44px;
+      height: 32px;
+      min-width: 44px;
+      min-height: 32px;
+      padding: 0;
+      border-radius: 8px;
+      border: 1px solid rgba(255,244,220,0.25);
+      background: rgba(8, 10, 16, 0.96);
+      color: #efe9dc;
+      font: 14px/1 ui-sans-serif, system-ui, sans-serif;
+    }
     body.dev #controls { bottom: var(--devbot-h, 210px); }
     body.dev #overlay { bottom: var(--devbot-h, 210px); overflow: hidden; }
     body.dev #overlay .sheet { max-height: 100%; }
@@ -683,6 +717,7 @@ function install() {
           <button type="button" id="dev-mic" aria-label="Microphone">Mic</button>
           <button type="button" id="dev-go" class="grow">Go</button>
           <button type="button" id="dev-gear" aria-label="Settings">⚙</button>
+          <button type="button" id="dev-hide">Hide</button>
         </div>
       </div>
       <form id="dev-settings" hidden>
@@ -728,6 +763,27 @@ function install() {
   const baseInput = root.querySelector("#dev-base");
   const modelInput = root.querySelector("#dev-model");
   let working = false;
+  let isHidden = false;
+
+  const showBtn = document.createElement("button");
+  showBtn.type = "button";
+  showBtn.id = "dev-show";
+  showBtn.textContent = "Dev";
+  showBtn.hidden = true;
+  document.body.appendChild(showBtn);
+
+  function setHidden(hide) {
+    isHidden = hide;
+    store("wv-dev-hidden", hide ? "1" : "0");
+    root.hidden = hide;
+    showBtn.hidden = !hide;
+    if (hide) {
+      document.documentElement.style.setProperty("--devbot-h", "0px");
+    } else {
+      pinDevbot(false);
+    }
+  }
+
   reportStatus = (text, detail) => {
     if (!logList.hidden) logStep(text);
     else setStatus(text, detail || "");
@@ -837,6 +893,7 @@ function install() {
   });
   root.addEventListener("focusout", () => {
     setTimeout(() => {
+      if (isHidden) return;
       if (working) {
         pinDevbot(true);
         return;
@@ -878,6 +935,8 @@ function install() {
 
   root.querySelector("#dev-gear").addEventListener("click", () => openSettings(settings.hidden));
   root.querySelector("#dev-back").addEventListener("click", () => openSettings(false));
+  root.querySelector("#dev-hide").addEventListener("click", () => setHidden(true));
+  showBtn.addEventListener("click", () => setHidden(false));
   root.querySelector("#dev-advanced").addEventListener("click", () => {
     const wrap = root.querySelector("#dev-base-wrap");
     const open = wrap.hidden;
@@ -899,6 +958,10 @@ function install() {
   go.addEventListener("click", () => runEdit());
 
   const watcher = new ResizeObserver(() => {
+    if (isHidden) {
+      document.documentElement.style.setProperty("--devbot-h", "0px");
+      return;
+    }
     const pinned = root.classList.contains("pinned-top");
     document.documentElement.style.setProperty("--devbot-h", pinned ? "0px" : root.offsetHeight + "px");
   });
@@ -990,6 +1053,7 @@ function install() {
       return;
     }
     working = true;
+    setHidden(false);
     pinDevbot(true);
     root.querySelector("#dev-text").blur();
     go.disabled = true;
@@ -1057,6 +1121,15 @@ function install() {
           sha: prior.sha,
           body: text.endsWith("\n") ? text : text + "\n",
         });
+      }
+      logStep("Checking the new code for mistakes…");
+      for (const edit of ready) {
+        const problem = await syntaxProblem(edit.path, edit.body);
+        if (problem) {
+          logStep("The AI's code for " + edit.path + " has a mistake (" + problem + "). Nothing was saved, so the game is safe. Try asking again.", "bad");
+          noteOutcome(saved);
+          return;
+        }
       }
       if (!ready.length) {
         const note = plan.skipped.join(" ") || "The AI didn't change anything. Nothing was saved.";
@@ -1136,6 +1209,7 @@ function install() {
     const sentence = String(summary || "").replace(/[.!?]+$/, "");
     const label = "Done — your change is live: " + sentence + ". Tap to reload.";
     reloadBtn.hidden = false;
+    setHidden(false);
     reloadBtn.textContent = label;
     reloadBtn.onclick = () => location.reload();
     logStep(label, "ok");
@@ -1147,6 +1221,9 @@ function install() {
 
   llmModel();
   llmBase();
+  if (load("wv-dev-hidden") === "1") {
+    setHidden(true);
+  }
 }
 
 if (typeof document !== "undefined") install();

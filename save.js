@@ -19,6 +19,8 @@ export function snapshot(game) {
   if (pose.armor < 1) pose.armor = 40;
   return {
     version: 1,
+    shipName: game.shipName || "",
+    pilotName: game.pilotName || "",
     credits: game.credits,
     cargo: game.cargo,
     fuel: game.fuel,

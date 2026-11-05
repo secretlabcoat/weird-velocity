@@ -412,10 +412,12 @@ export function bootTitle(game) {
   game.snap = true;
 }
 
-export function startNew(game) {
+export function startNew(game, names = {}) {
   const view = game.view;
   const mute = game.mute;
   Object.assign(game, createGame());
+  game.shipName = names.shipName || copy.ship.name;
+  game.pilotName = names.pilotName || copy.pilot.name;
   game.view = view;
   game.mute = mute;
   game.hasSave = true;
@@ -439,6 +441,8 @@ export function startNew(game) {
 
 export function restore(game, data) {
   const view = game.view;
+  game.shipName = data.shipName || copy.ship.name;
+  game.pilotName = data.pilotName || copy.pilot.name;
   game.credits = data.credits | 0;
   game.cargo = { ...(data.cargo || {}) };
   game.fuel = clamp(data.fuel ?? 100, 0, game.fuelMax);

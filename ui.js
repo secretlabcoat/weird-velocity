@@ -44,6 +44,28 @@ function applyStaticLabels() {
 if (typeof document !== "undefined") applyStaticLabels();
 
 function titleHtml(game) {
+  if (game.naming) {
+    const shipVal = game.shipName || copy.ship.name;
+    const pilotVal = game.pilotName || copy.pilot.name;
+    return `<div class="sheet">
+    <div class="head">
+      <p class="kicker">${esc(copy.title.kicker)}</p>
+      <h2>${esc(copy.title.nameHeading)}</h2>
+    </div>
+    <div class="body scroll">
+      <label>${esc(copy.title.shipLabel)}
+        <input type="text" id="shipNameInput" value="${esc(shipVal)}" maxlength="24" autocomplete="off" style="font-size:16px">
+      </label>
+      <label>${esc(copy.title.pilotLabel)}
+        <input type="text" id="pilotNameInput" value="${esc(pilotVal)}" maxlength="24" autocomplete="off" style="font-size:16px">
+      </label>
+    </div>
+    <div class="foot col">
+      <button type="button" class="primary" data-act="begin">${esc(copy.title.launch)}</button>
+      <button type="button" data-act="back-title">${esc(copy.title.back)}</button>
+    </div>
+  </div>`;
+  }
   const saved = !!game.hasSave;
   const help = copy.title.help.map((line) => `<li>${esc(line)}</li>`).join("");
   return `<div class="sheet">
@@ -161,7 +183,7 @@ function yardHtml(game) {
   const armorRoom = game.player.armorMax - game.player.armor;
   const armorGet = Math.min(armorRoom, Math.floor(game.credits / REPAIR_PRICE));
   const kind = game.bodies.find((b) => b.id === game.dockId)?.kind;
-  return `<p>${esc(fill(copy.screens.yardIntro, { ship: copy.ship.name }))}</p>
+  return `<p>${esc(fill(copy.screens.yardIntro, { ship: game.shipName || copy.ship.name }))}</p>
     <p class="meta">${esc(fill(copy.screens.yardFuel, {
       have: Math.ceil(game.fuel),
       max: game.fuelMax,
@@ -261,11 +283,11 @@ function mapHtml(game) {
   </div>`;
 }
 
-function deadHtml() {
+function deadHtml(game) {
   return `<div class="sheet">
     <div class="head">
       <p class="kicker">${esc(copy.screens.deathKicker)}</p>
-      <h2>${esc(fill(copy.screens.deathTitle, { ship: copy.ship.name }))}</h2>
+      <h2>${esc(fill(copy.screens.deathTitle, { ship: game.shipName || copy.ship.name }))}</h2>
       <p>${esc(fill(copy.screens.deathBody, { faction: copy.factions.chorus }))}</p>
     </div>
     <div class="foot">
@@ -285,7 +307,7 @@ function renderOverlay(game) {
   if (game.mode === "title") root.innerHTML = titleHtml(game);
   else if (game.mode === "dock") root.innerHTML = dockHtml(game);
   else if (game.mode === "map") root.innerHTML = mapHtml(game);
-  else if (game.mode === "dead") root.innerHTML = deadHtml();
+  else if (game.mode === "dead") root.innerHTML = deadHtml(game);
   const scroller = root.querySelector(".scroll");
   if (scroller && game._scroll) scroller.scrollTop = game._scroll;
 }
@@ -303,8 +325,20 @@ function afterTrade(game, result, label) {
 function handle(game, el) {
   const act = el.dataset.act;
   if (act !== "tab") rememberScroll(game);
-  if (act === "new") startNew(game);
-  else if (act === "continue") {
+  if (act === "new") {
+    game.naming = true;
+    game.uiRev++;
+  } else if (act === "begin") {
+    const shipEl = document.getElementById("shipNameInput");
+    const pilotEl = document.getElementById("pilotNameInput");
+    const shipName = (shipEl ? shipEl.value.trim() : "") || copy.ship.name;
+    const pilotName = (pilotEl ? pilotEl.value.trim() : "") || copy.pilot.name;
+    game.naming = false;
+    startNew(game, { shipName, pilotName });
+  } else if (act === "back-title") {
+    game.naming = false;
+    game.uiRev++;
+  } else if (act === "continue") {
     const data = readSave();
     if (data) restore(game, data);
   } else if (act === "erase") {
@@ -427,7 +461,7 @@ export function sync(game) {
     banner.hidden = true;
   }
   updateAct(game);
-  const key = [game.mode, game.uiRev, game.dockId, game.dockTab, game.mapFocus, game.navSystem, game.hasSave ? 1 : 0].join("|");
+  const key = [game.mode, game.naming ? 1 : 0, game.uiRev, game.dockId, game.dockTab, game.mapFocus, game.navSystem, game.hasSave ? 1 : 0].join("|");
   if (key !== shown) {
     shown = key;
     renderOverlay(game);

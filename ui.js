@@ -2,7 +2,7 @@
 
 import { GOODS, SYSTEMS, system, route } from "./data/galaxy.js";
 import copy, { fill } from "./data/text.js";
-import { buyPrice, sellPrice, cargoUsed, buyGood, sellGood, buyFuel, buyRepair } from "./trade.js";
+import { buyPrice, sellPrice, cargoUsed, buyGood, sellGood, buyFuel, buyRepair, stocked } from "./trade.js";
 import { acceptMission, abandonMission, missionBlurb } from "./missions.js";
 import { startNew, restore, launch, respawn, openMap, closeMap } from "./sim.js";
 import { readSave, eraseSave, persist } from "./save.js";
@@ -115,6 +115,7 @@ function goodsHtml(game) {
     }
   }
   for (const good of GOODS) {
+    if (!(game.cargo[good.id] || 0) && !stocked(game, game.systemId, good.id)) continue;
     const buy = buyPrice(game, game.systemId, good.id);
     const sell = sellPrice(game, game.systemId, good.id);
     const ratio = buy / good.base;

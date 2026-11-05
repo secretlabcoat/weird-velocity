@@ -144,7 +144,7 @@ a pocket cosmos
 
 Weird Velocity
 
-You fly a ship named Probably. Trade odd cargo. Apologize with lasers.
+Trade odd cargo. Apologize with lasers.
 
 - Drag the stick, or use WASD. You keep your drift.
 - Stop brakes. Fire shoots, and holding it is fine.

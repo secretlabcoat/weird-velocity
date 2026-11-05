@@ -57,7 +57,11 @@ html, body {
 #hud, #controls, #minimap { display: none; }
 
 body[data-mode="flight"] #hud,
-body[data-mode="warp"] #hud { display: grid; }
+body[data-mode="warp"] #hud,
+body[data-mode="landed"] #hud,
+body[data-mode="trade"] #hud,
+body[data-mode="station"] #hud,
+body[data-mode="title"] #hud { display: grid; }
 
 body[data-mode="flight"] #controls { display: flex; }
 

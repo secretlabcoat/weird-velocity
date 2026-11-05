@@ -1043,6 +1043,49 @@ function install() {
     }
   }
 
+  function unusedNames(originals, ready) {
+    const changedPaths = new Set(ready.map((edit) => edit.path));
+    const newNames = new Set();
+    for (const edit of ready) {
+      if (!edit.path.endsWith(".js")) continue;
+      const prior = originals.find((file) => file.path === edit.path);
+      if (!prior) continue;
+      const oldText = prior.text;
+      const newText = edit.body;
+      const extract = (text) => {
+        const names = new Set();
+        const re1 = /\bfunction\s+([A-Za-z_$][\w$]*)/g;
+        let m1;
+        while ((m1 = re1.exec(text)) !== null) names.add(m1[1]);
+        const re2 = /\b(?:const|let)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?(?:function|\([^)]*\)\s*=>|[A-Za-z_$][\w$]*\s*=>)/g;
+        let m2;
+        while ((m2 = re2.exec(text)) !== null) names.add(m2[1]);
+        return names;
+      };
+      const oldNames = extract(oldText);
+      const newFileNames = extract(newText);
+      for (const name of newFileNames) {
+        if (!oldNames.has(name)) newNames.add(name);
+      }
+    }
+    const allTexts = [];
+    for (const file of originals) {
+      const edit = ready.find((e) => e.path === file.path);
+      allTexts.push(edit ? edit.body : file.text);
+    }
+    const unused = [];
+    for (const name of newNames) {
+      let count = 0;
+      const re = new RegExp("\\b" + name + "\\b", "g");
+      for (const text of allTexts) {
+        const matches = text.match(re);
+        if (matches) count += matches.length;
+      }
+      if (count === 1) unused.push(name);
+    }
+    return unused;
+  }
+
   async function runEdit() {
     const instruction = root.querySelector("#dev-text").value.trim();
     if (!instruction) {
@@ -1089,21 +1132,36 @@ function install() {
         originals.push({ path, sha: got.sha, text: b64ToUtf8(got.content || "") });
       }
       const words = searchWords(instruction);
+      const totalChars = originals.reduce((sum, file) => sum + file.text.length, 0);
+      const useFull = totalChars < 150000;
       const bundle = originals.map((file) => {
-        const snippet = snippetFor(file.text, words);
-        return `FILE ${file.path}\n${snippet || "(no matching lines)"}`;
+        let content;
+        let label;
+        if (useFull) {
+          content = file.text;
+          label = "full";
+        } else {
+          if (file.text.length > 40000) {
+            content = snippetFor(file.text, words);
+            label = "excerpt";
+          } else {
+            content = file.text;
+            label = "full";
+          }
+        }
+        return `FILE ${file.path} (${label})\n${content || "(no matching lines)"}`;
       }).join("\n\n");
       logStep("Asking the AI…");
       const reply = await fetchChat([
         {
           role: "system",
-          content: "Return ONLY JSON: {\"edits\":[{\"path\":\"file.js\",\"find\":\"exact existing text\",\"replace\":\"new text\"}],\"summary\":\"one plain sentence of what changed\"}. summary is one sentence for the player, with no code. Copy find exactly from the snippets, with no line numbers. Change as little as possible. Do not rewrite the whole file.",
+          content: "Return ONLY JSON: {\"edits\":[{\"path\":\"file.js\",\"find\":\"exact existing text\",\"replace\":\"new text\"}],\"summary\":\"one plain sentence of what changed\"}. summary is one sentence for the player, with no code. Copy find exactly from the snippets, with no line numbers. Change as little as possible. Do not rewrite the whole file. How the game is wired: main.js runs every frame and calls step(game) from sim.js, draw(game) from render.js, and sync(game) from ui.js. A new function does nothing unless existing code calls it, so always add the call too. If code looks up an element by id, also create that element (in index.html or with document.createElement). Put player-facing words in data/text.js when that file is loaded.",
         },
         {
           role: "user",
           content: `Request: ${instruction}\n\n${bundle}`,
         },
-      ], 4096, true);
+      ], 8192, true);
       let plan;
       try {
         plan = applyEditPlan(originals, reply.text);
@@ -1120,6 +1178,66 @@ function install() {
           sha: prior.sha,
           body: text.endsWith("\n") ? text : text + "\n",
         });
+      }
+      let unused = unusedNames(originals, ready);
+      if (unused.length) {
+        logStep("The AI added code that nothing uses (" + unused.join(", ") + "). Asking it to connect it…");
+        const changedPaths = new Set(ready.map((edit) => edit.path));
+        const currentOriginals = originals.map((file) => {
+          const edit = ready.find((e) => e.path === file.path);
+          return {
+            path: file.path,
+            sha: file.sha,
+            text: edit ? edit.body : file.text,
+          };
+        });
+        const currentBundle = currentOriginals.map((file) => {
+          const isChanged = changedPaths.has(file.path);
+          const label = isChanged ? "full" : "full";
+          return `FILE ${file.path} (${label})\n${file.text}`;
+        }).join("\n\n");
+        const secondReply = await fetchChat([
+          {
+            role: "system",
+            content: "Return ONLY JSON: {\"edits\":[{\"path\":\"file.js\",\"find\":\"exact existing text\",\"replace\":\"new text\"}],\"summary\":\"one plain sentence of what changed\"}. summary is one sentence for the player, with no code. Copy find exactly from the snippets, with no line numbers. Change as little as possible. Do not rewrite the whole file. How the game is wired: main.js runs every frame and calls step(game) from sim.js, draw(game) from render.js, and sync(game) from ui.js. A new function does nothing unless existing code calls it, so always add the call too. If code looks up an element by id, also create that element (in index.html or with document.createElement). Put player-facing words in data/text.js when that file is loaded.",
+          },
+          {
+            role: "user",
+            content: `Request: ${instruction}\n\n${currentBundle}\n\nYour previous edits were applied, but these new functions are never called: ${unused.join(", ")}. Add the missing calls (or remove them) so the request actually works in the game.`,
+          },
+        ], 8192, true);
+        let secondPlan;
+        try {
+          secondPlan = applyEditPlan(currentOriginals, secondReply.text);
+        } catch (err) {
+          if (!err.reply) err.reply = String(secondReply.text || "").slice(0, 200);
+          throw err;
+        }
+        const secondReady = [];
+        for (const [path, text] of secondPlan.changed) {
+          const prior = currentOriginals.find((file) => file.path === path);
+          if (!prior || text.trim() === prior.text.trim()) continue;
+          const originalSha = originals.find((file) => file.path === path).sha;
+          secondReady.push({
+            path,
+            sha: originalSha,
+            body: text.endsWith("\n") ? text : text + "\n",
+          });
+        }
+        for (const edit of secondReady) {
+          const existing = ready.find((e) => e.path === edit.path);
+          if (existing) {
+            existing.body = edit.body;
+          } else {
+            ready.push(edit);
+          }
+        }
+        unused = unusedNames(originals, ready);
+        if (unused.length) {
+          logStep("The AI's change still isn't connected to the game, so nothing was saved. Try describing it differently.", "bad");
+          noteOutcome(saved);
+          return;
+        }
       }
       logStep("Checking the new code for mistakes…");
       for (const edit of ready) {

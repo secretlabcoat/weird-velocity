@@ -220,8 +220,8 @@ const text = {
   systems: [
     {
       id: "brine",
-      name: "Alpha Prime",
-      short: "Alpha",
+      name: "Beta Primo",
+      short: "Beta",
       blurb: "A peaceful trading hub with stable orbits and friendly stations.",
       specialty: "Cheap: starlight extract, berry jam. Safe for new pilots.",
       places: [

@@ -13,6 +13,7 @@ export const GOODS = [
   { id: "moss", base: 70 },
   { id: "numbers", base: 180 },
   { id: "ore", base: 70 },
+  { id: "squazzex", base: 150 },
 ];
 
 export const PIRATE_NAMES = copy.factions.pirateNames;
@@ -20,13 +21,13 @@ export const SOLO_NAMES = copy.factions.soloNames;
 export const BARKS = copy.factions.barks;
 
 const PRICE = {
-  brine:    { starlight: 0.55, regret: 0.68, gravity: 1.35, threats: 1.25, honey: 1.15, echoes: 1.30, moss: 1.15, numbers: 1.60, ore: 1.20 },
-  orchard:  { starlight: 1.50, regret: 1.20, gravity: 1.15, threats: 1.30, honey: 0.55, echoes: 0.58, moss: 1.25, numbers: 1.15, ore: 1.35 },
-  courtesy: { starlight: 1.20, regret: 1.35, gravity: 1.25, threats: 0.55, honey: 1.20, echoes: 1.15, moss: 0.62, numbers: 1.30, ore: 1.10 },
-  museum:   { starlight: 1.70, regret: 1.15, gravity: 0.58, threats: 1.30, honey: 1.45, echoes: 1.05, moss: 1.20, numbers: 1.35, ore: 1.45 },
-  census:   { starlight: 1.25, regret: 1.55, gravity: 1.20, threats: 1.10, honey: 1.20, echoes: 1.35, moss: 0.60, numbers: 0.54, ore: 0.95 },
-  hum:      { starlight: 1.15, regret: 0.60, gravity: 0.57, threats: 1.55, honey: 1.25, echoes: 1.40, moss: 1.15, numbers: 1.20, ore: 1.15 },
-  parcel:   { starlight: 1.05, regret: 1.08, gravity: 1.35, threats: 0.82, honey: 0.95, echoes: 0.78, moss: 0.80, numbers: 1.00, ore: 1.00 },
+  brine:    { starlight: 0.55, regret: 0.68, gravity: 1.35, threats: 1.25, honey: 1.15, echoes: 1.30, moss: 1.15, numbers: 1.60, ore: 1.20, squazzex: 1.00 },
+  orchard:  { starlight: 1.50, regret: 1.20, gravity: 1.15, threats: 1.30, honey: 0.55, echoes: 0.58, moss: 1.25, numbers: 1.15, ore: 1.35, squazzex: 1.10 },
+  courtesy: { starlight: 1.20, regret: 1.35, gravity: 1.25, threats: 0.55, honey: 1.20, echoes: 1.15, moss: 0.62, numbers: 1.30, ore: 1.10, squazzex: 0.90 },
+  museum:   { starlight: 1.70, regret: 1.15, gravity: 0.58, threats: 1.30, honey: 1.45, echoes: 1.05, moss: 1.20, numbers: 1.35, ore: 1.45, squazzex: 1.15 },
+  census:   { starlight: 1.25, regret: 1.55, gravity: 1.20, threats: 1.10, honey: 1.20, echoes: 1.35, moss: 0.60, numbers: 0.54, ore: 0.95, squazzex: 1.05 },
+  hum:      { starlight: 1.15, regret: 0.60, gravity: 0.57, threats: 1.55, honey: 1.25, echoes: 1.40, moss: 1.15, numbers: 1.20, ore: 1.15, squazzex: 0.95 },
+  parcel:   { starlight: 1.05, regret: 1.08, gravity: 1.35, threats: 0.82, honey: 0.95, echoes: 0.78, moss: 0.80, numbers: 1.00, ore: 1.00, squazzex: 1.00 },
 };
 
 export const SYSTEMS = [

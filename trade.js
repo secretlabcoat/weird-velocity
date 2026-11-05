@@ -61,13 +61,6 @@ export function buyFuel(game, amount) {
   return { ok: true, n, cost: n * FUEL_PRICE };
 }
 
-// Ensure audio context starts if needed
-function checkAudio(game) {
-  if (game && game.audio && typeof game.audio.resume === "function") {
-    game.audio.resume();
-  }
-}
-
 export function buyRepair(game, amount) {
   const p = game.player;
   if (!p) return { ok: false, reason: copy.messages.noShip };

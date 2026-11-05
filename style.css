@@ -57,11 +57,7 @@ html, body {
 #hud, #controls, #minimap { display: none; }
 
 body[data-mode="flight"] #hud,
-body[data-mode="warp"] #hud,
-body[data-mode="landed"] #hud,
-body[data-mode="trade"] #hud,
-body[data-mode="station"] #hud,
-body[data-mode="title"] #hud { display: grid; }
+body[data-mode="warp"] #hud { display: grid; }
 
 body[data-mode="flight"] #controls { display: flex; }
 
@@ -436,11 +432,6 @@ button:disabled { opacity: 0.38; }
   box-sizing: border-box;
 }
 .node.seen::after { background: rgba(126, 224, 214, 0.45); }
-
-#devpanel { transition: transform 0.2s ease; }
-#devpanel.dev-hidden { transform: translateY(calc(100% - 32px)); pointer-events: none; }
-#devpanel.dev-hidden .dev-body, #devpanel.dev-hidden .dev-foot { display: none !important; }
-#devtoggle { background: transparent; border: 0; color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; cursor: pointer; padding: 4px 8px; }
 .node.here::after { background: var(--teal); }
 .node.focus::after { box-shadow: 0 0 0 4px rgba(255, 177, 90, 0.9); }
 

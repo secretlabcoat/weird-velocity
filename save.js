@@ -1,6 +1,6 @@
 // localStorage voyage. One key, one version, plain JSON.
 
-import { bodyById, launchPose } from "./data/galaxy.js";
+import { SYSTEMS, bodyById, launchPose } from "./data/galaxy.js";
 
 const KEY = "weird-velocity-v1";
 
@@ -57,7 +57,8 @@ export function readSave() {
     const raw = localStorage.getItem(KEY);
     if (!raw) return null;
     const data = JSON.parse(raw);
-    if (!data || data.version !== 1 || typeof data.credits !== "number" || !data.systemId) return null;
+    if (!data || data.version !== 1 || !Number.isSafeInteger(data.credits) || data.credits < 0) return null;
+    if (!SYSTEMS.some((system) => system.id === data.systemId)) return null;
     return data;
   } catch {
     return null;
